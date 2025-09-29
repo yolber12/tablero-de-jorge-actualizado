@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Patrocinios - Jorge Dos Santos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; min-height: 100vh; }
+        .kanban-column { min-width: 280px; max-width: 320px; background-color: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); }
+        .card { cursor: grab; transition: transform 0.1s ease, box-shadow 0.1s ease; }
+        .card:active { cursor: grabbing; transform: scale(1.02); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); }
+        .drag-over { background-color: #e0e7ff; border-color: #3b82f6; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <header class="mb-8 p-6 bg-white rounded-2xl shadow-2xl border-t-4 border-indigo-600">
+        <div class="flex items-start justify-between">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2 flex items-center">
+                    <i data-lucide="car" class="w-7 h-7 mr-3 text-indigo-700"></i>
+                    Dashboard de Patrocinios - Jorge Dos Santos
+                </h1>
+                <p class="text-lg text-gray-600">Gestión estratégica de acuerdos - Sincronizado en tiempo real</p>
+            </div>
+            <span id="connection-status" class="text-sm bg-green-100 text-green-700 px-4 py-2 rounded-full font-semibold ml-4 shadow-inner">
+                Conectado ✓
+            </span>
+        </div>
+        <div class="mt-6 p-5 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl shadow-lg flex justify-between items-center">
+            <p class="text-white font-bold text-xl flex items-center">
+                <i data-lucide="dollar-sign" class="w-6 h-6 mr-3 text-white"></i>
+                Capital Proyectado Total:
+            </p>
+            <span id="total-amount" class="text-4xl font-extrabold text-yellow-300 ml-4">$0.00</span>
+        </div>
+    </header>
+
+    <main class="flex flex-row overflow-x-auto gap-6 justify-center">
+        <!-- Columna: Negociación -->
+        <div id="negotiation" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'negotiation')" ondragleave="handleDragLeave(event)">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center">
+                <i data-lucide="clock" class="w-5 h-5 mr-2 text-blue-500"></i>
+                Fase I: Propuesta y Negociación
+                <span class="ml-2 text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full" id="negotiation-count">0</span>
+            </h2>
+            <button id="add-sponsorship-btn" class="mb-4 w-full flex items-center justify-center px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-150 shadow-md">
+                <i data-lucide="plus-circle" class="w-5 h-5 mr-2"></i>
+                Añadir Nueva Oportunidad
+            </button>
+            <div id="add-form-container" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg shadow-inner hidden">
+                <form id="add-sponsorship-form">
+                    <input type="text" id="sponsorship-name" placeholder="Nombre de la Marca" required class="w-full p-2 mb-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="number" id="sponsorship-amount" placeholder="Monto (ej: 1500)" required class="w-full p-2 mb-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" min="0">
+                    <textarea id="sponsorship-notes" placeholder="Notas clave" rows="2" class="w-full p-2 mb-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    <div class="flex justify-between space-x-2">
+                        <button type="submit" class="flex-1 px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition">Guardar</button>
+                        <button type="button" id="cancel-add-btn" class="px-3 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition flex items-center">
+                            <i data-lucide="x-circle" class="w-4 h-4 mr-1"></i> Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div id="negotiation-list" class="space-y-4 flex-grow"></div>
+        </div>
+
+        <!-- Columna: Pendiente por Pagar -->
+        <div id="pending" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'pending')" ondragleave="handleDragLeave(event)">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center">
+                <i data-lucide="dollar-sign" class="w-5 h-5 mr-2 text-yellow-500"></i>
+                Fase II: Acuerdos en Cierre
+                <span class="ml-2 text-sm bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full" id="pending-count">0</span>
+            </h2>
+            <div id="pending-list" class="space-y-4 flex-grow"></div>
+        </div>
+
+        <!-- Columna: Pagado -->
+        <div id="paid" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'paid')" ondragleave="handleDragLeave(event)">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center">
+                <i data-lucide="check-circle" class="w-5 h-5 mr-2 text-green-500"></i>
+                Fase III: Éxito y Cierre de Capital
+                <span class="ml-2 text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full" id="paid-count">0</span>
+            </h2>
+            <div id="paid-list" class="space-y-4 flex-grow"></div>
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="action-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm">
+            <h3 id="modal-title" class="text-lg font-bold mb-4 text-gray-800">Confirmar Acción</h3>
+            <p id="modal-message" class="mb-6 text-gray-600"></p>
+            <div class="flex justify-end space-x-3">
+                <button id="modal-cancel" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">Cancelar</button>
+                <button id="modal-confirm" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <script>
+        // CONFIGURACIÓN DE FIREBASE - CON TUS DATOS REALES
+        const firebaseConfig = {
+            apiKey: "AlzaSyA1UPMYdUxOPfBpExXsdWJO_AUjaqW4x5U",
+            authDomain: "tablero-jorge.firebaseapp.com",
+            projectId: "tablero-jorge",
+            storageBucket: "tablero-jorge.appspot.com",
+            messagingSenderId: "385052863001",
+            appId: "1:385052863001:web:48a6fbaaa19fb7c6b0d888"
+        };
+
+        // Inicializar Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        
+        lucide.createIcons();
+
+        let sponsorships = [];
+
+        // Configurar Firestore
+        async function initFirebase() {
+            try {
+                // Autenticación anónima
+                await auth.signInAnonymously();
+                console.log("✅ Conectado a Firebase");
+                
+                // Cargar datos iniciales
+                await initializeData();
+                
+                // Escuchar cambios en tiempo real
+                setupRealtimeListener();
+                
+                // Configurar interfaz
+                setupFormListeners();
+                
+                updateConnectionStatus('connected');
+                
+            } catch (error) {
+                console.error("❌ Error Firebase:", error);
+                updateConnectionStatus('error');
+                showModal('Error de Conexión', 
+                    'No se pudo conectar a la base de datos. Los cambios no se guardarán.', 
+                    () => {}
+                );
+            }
+        }
+
+        function updateConnectionStatus(status) {
+            const element = document.getElementById('connection-status');
+            element.classList.remove('bg-green-100', 'bg-red-100', 'bg-yellow-100', 'text-green-700', 'text-red-700', 'text-yellow-700');
+            
+            if (status === 'connected') {
+                element.textContent = 'Conectado ✓';
+                element.classList.add('bg-green-100', 'text-green-700');
+            } else if (status === 'error') {
+                element.textContent = 'Error de Conexión ✗';
+                element.classList.add('bg-red-100', 'text-red-700');
+            } else {
+                element.textContent = 'Conectando...';
+                element.classList.add('bg-yellow-100', 'text-yellow-700');
+            }
+        }
+
+        async function initializeData() {
+            const snapshot = await db.collection('sponsorships').get();
+            
+            if (snapshot.empty) {
+                // Datos iniciales
+                const initialData = [
+                    { name: 'Moss', amount: 2000, status: 'pending', notes: 'Pendiente de pago por transferencia.' },
+                    { name: 'Puma', amount: 900, status: 'pending', notes: 'Esperando referencia de pago.' },
+                    { name: 'Gp', amount: 1000, status: 'paid', notes: 'Pagado en cash. Cerrado.' },
+                    { name: 'Arcoweld', amount: 700, status: 'pending', notes: 'Envío de recordatorio pendiente.' },
+                    { name: 'Mi casino', amount: 450, status: 'pending', notes: 'Verificar documentación.' },
+                    { name: 'Solverapp', amount: 550, status: 'paid', notes: 'Pagado en cash. Cerrado.' },
+                ];
+                
+                // Agregar datos iniciales
+                for (const item of initialData) {
+                    await db.collection('sponsorships').add({
+                        ...item,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                console.log("📊 Datos iniciales creados");
+            }
+        }
+
+        function setupRealtimeListener() {
+            db.collection('sponsorships').onSnapshot((snapshot) => {
+                sponsorships = [];
+                snapshot.forEach(doc => {
+                    sponsorships.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                renderSponsorships();
+                console.log("🔄 Datos actualizados en tiempo real");
+            }, (error) => {
+                console.error("Error en listener:", error);
+                updateConnectionStatus('error');
+            });
+        }
+
+        async function updateSponsorshipStatus(id, newStatus) {
+            try {
+                await db.collection('sponsorships').doc(id).update({
+                    status: newStatus,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Error actualizando:", error);
+                throw error;
+            }
+        }
+
+        async function addSponsorship(name, amount, notes) {
+            try {
+                await db.collection('sponsorships').add({
+                    name: name,
+                    amount: parseFloat(amount),
+                    notes: notes,
+                    status: 'negotiation',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return true;
+            } catch (error) {
+                console.error("Error agregando:", error);
+                return false;
+            }
+        }
+
+        function createCardElement(sponsorship) {
+            const card = document.createElement('div');
+            card.className = 'card bg-white p-4 rounded-lg shadow-md border-t-4 mb-4 fade-in';
+            card.setAttribute('draggable', true);
+            card.setAttribute('data-id', sponsorship.id);
+            card.setAttribute('data-status', sponsorship.status);
+
+            const statusConfig = {
+                'pending': { border: 'border-yellow-500', icon: 'dollar-sign', color: 'text-yellow-500', text: 'PENDIENTE' },
+                'paid': { border: 'border-green-500', icon: 'check-circle', color: 'text-green-500', text: 'CAPITAL RECIBIDO' },
+                'negotiation': { border: 'border-blue-500', icon: 'clock', color: 'text-blue-500', text: 'EN NEGOCIACIÓN' }
+            };
+
+            const config = statusConfig[sponsorship.status];
+            const formattedAmount = `$${(sponsorship.amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-widest">${config.text}</span>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">${sponsorship.name}</h3>
+                <p class="text-2xl font-extrabold ${config.color} mb-2 flex items-center">
+                    <i data-lucide="${config.icon}" class="w-5 h-5 mr-2"></i>
+                    ${formattedAmount}
+                </p>
+                ${sponsorship.notes ? `<p class="text-sm text-gray-500 italic mt-2">${sponsorship.notes}</p>` : ''}
+            `;
+            card.classList.add(config.border);
+            
+            lucide.createIcons({ icons: [config.icon] });
+            card.addEventListener('dragstart', handleDragStart);
+            
+            return card;
+        }
+
+        function renderSponsorships() {
+            // Limpiar columnas
+            ['negotiation', 'pending', 'paid'].forEach(status => {
+                document.getElementById(`${status}-list`).innerHTML = '';
+            });
+
+            let totalAmount = 0;
+            const counts = { negotiation: 0, pending: 0, paid: 0 };
+
+            sponsorships.forEach(sponsorship => {
+                totalAmount += sponsorship.amount || 0;
+                counts[sponsorship.status]++;
+                
+                const card = createCardElement(sponsorship);
+                document.getElementById(`${sponsorship.status}-list`).appendChild(card);
+            });
+
+            // Actualizar UI
+            document.getElementById('total-amount').textContent = 
+                `$${totalAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+            
+            Object.keys(counts).forEach(status => {
+                document.getElementById(`${status}-count`).textContent = counts[status];
+            });
+        }
+
+        function setupFormListeners() {
+            const addBtn = document.getElementById('add-sponsorship-btn');
+            const cancelBtn = document.getElementById('cancel-add-btn');
+            const formContainer = document.getElementById('add-form-container');
+            const form = document.getElementById('add-sponsorship-form');
+
+            addBtn.addEventListener('click', () => {
+                formContainer.classList.remove('hidden');
+                addBtn.classList.add('hidden');
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                formContainer.classList.add('hidden');
+                addBtn.classList.remove('hidden');
+                form.reset();
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('sponsorship-name').value.trim();
+                const amount = document.getElementById('sponsorship-amount').value;
+                const notes = document.getElementById('sponsorship-notes').value.trim();
+
+                if (name && amount) {
+                    const success = await addSponsorship(name, amount, notes);
+                    if (success) {
+                        form.reset();
+                        formContainer.classList.add('hidden');
+                        addBtn.classList.remove('hidden');
+                    } else {
+                        showModal('Error', 'No se pudo guardar. Revisa la conexión.', () => {});
+                    }
+                }
+            });
+        }
+
+        // Drag & Drop
+        let draggedId = null;
+
+        function handleDragStart(event) {
+            draggedId = event.target.getAttribute('data-id');
+            event.dataTransfer.setData('text/plain', draggedId);
+            event.target.classList.add('opacity-50');
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(event, newStatus) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('drag-over');
+            
+            const card = document.querySelector(`[data-id="${draggedId}"]`);
+            if (card) card.classList.remove('opacity-50');
+
+            const currentStatus = card.getAttribute('data-status');
+            if (currentStatus === newStatus) return;
+
+            const sponsorship = sponsorships.find(s => s.id === draggedId);
+            if (!sponsorship) return;
+
+            showModal(
+                'Confirmar Cambio',
+                `¿Mover <strong>${sponsorship.name}</strong> a <strong>${getStatusName(newStatus)}</strong>?`,
+                () => updateSponsorshipStatus(draggedId, newStatus)
+            );
+        }
+
+        function getStatusName(status) {
+            const names = {
+                'negotiation': 'Propuesta y Negociación',
+                'pending': 'Acuerdos en Cierre', 
+                'paid': 'Éxito y Cierre de Capital'
+            };
+            return names[status];
+        }
+
+        function showModal(title, message, onConfirm) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').innerHTML = message;
+            const modal = document.getElementById('action-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            document.getElementById('modal-confirm').onclick = () => {
+                modal.classList.add('hidden');
+                onConfirm();
+            };
+
+            document.getElementById('modal-cancel').onclick = () => {
+                modal.classList.add('hidden');
+            };
+        }
+
+        // Hacer funciones globales
+        window.handleDragOver = handleDragOver;
+        window.handleDragLeave = handleDragLeave;
+        window.handleDrop = handleDrop;
+
+        // Inicializar
+        window.addEventListener('DOMContentLoaded', initFirebase);
+    </script>
+</body>
+</html>
