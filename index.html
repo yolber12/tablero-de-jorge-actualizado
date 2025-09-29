@@ -41,7 +41,6 @@
     </header>
 
     <main class="flex flex-row overflow-x-auto gap-6 justify-center">
-        <!-- Columna: Negociación -->
         <div id="negotiation" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'negotiation')" ondragleave="handleDragLeave(event)">
             <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center">
                 <i data-lucide="clock" class="w-5 h-5 mr-2 text-blue-500"></i>
@@ -68,7 +67,6 @@
             <div id="negotiation-list" class="space-y-4 flex-grow"></div>
         </div>
 
-        <!-- Columna: Pendiente por Pagar -->
         <div id="pending" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'pending')" ondragleave="handleDragLeave(event)">
             <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center">
                 <i data-lucide="dollar-sign" class="w-5 h-5 mr-2 text-yellow-500"></i>
@@ -78,7 +76,6 @@
             <div id="pending-list" class="space-y-4 flex-grow"></div>
         </div>
 
-        <!-- Columna: Pagado -->
         <div id="paid" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'paid')" ondragleave="handleDragLeave(event)">
             <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center">
                 <i data-lucide="check-circle" class="w-5 h-5 mr-2 text-green-500"></i>
@@ -89,7 +86,6 @@
         </div>
     </main>
 
-    <!-- Modal -->
     <div id="action-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm">
             <h3 id="modal-title" class="text-lg font-bold mb-4 text-gray-800">Confirmar Acción</h3>
@@ -101,7 +97,6 @@
         </div>
     </div>
 
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -279,7 +274,8 @@
                 'negotiation': { border: 'border-blue-500', icon: 'clock', color: 'text-blue-500', text: 'EN NEGOCIACIÓN' }
             };
 
-            const config = statusConfig[sponsorship.status];
+            // CORRECCIÓN APLICADA: Si sponsorship.status es inválido, usa 'negotiation' como valor por defecto.
+            const config = statusConfig[sponsorship.status] || statusConfig['negotiation']; 
             const formattedAmount = `$${(sponsorship.amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 
             card.innerHTML = `
