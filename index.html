@@ -25,10 +25,10 @@
                     <i data-lucide="car" class="w-7 h-7 mr-3 text-indigo-700"></i>
                     Dashboard de Patrocinios - Jorge Dos Santos
                 </h1>
-                <p class="text-lg text-gray-600">Gestión estratégica de acuerdos - Sincronizado en tiempo real</p>
+                <p class="text-lg text-gray-600" id="sync-status">Conectando a la base de datos...</p>
             </div>
-            <span id="connection-status" class="text-sm bg-green-100 text-green-700 px-4 py-2 rounded-full font-semibold ml-4 shadow-inner">
-                Conectado ✓
+            <span id="connection-status" class="text-sm bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-semibold ml-4 shadow-inner">
+                Conectando...
             </span>
         </div>
         <div class="mt-6 p-5 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl shadow-lg flex justify-between items-center">
@@ -107,7 +107,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <script>
-        // CONFIGURACIÓN DE FIREBASE - CON TUS DATOS REALES
+        // CONFIGURACIÓN DE FIREBASE - TU PROYECTO
         const firebaseConfig = {
             apiKey: "AlzaSyA1UPMYdUxOPfBpExXsdWJO_AUjaqW4x5U",
             authDomain: "tablero-jorge.firebaseapp.com",
@@ -125,30 +125,31 @@
         lucide.createIcons();
 
         let sponsorships = [];
+        let isOnline = false;
 
-        // Configurar Firestore
+        // Configurar Firebase
         async function initFirebase() {
             try {
+                updateConnectionStatus('connecting');
+                console.log("🔄 Iniciando Firebase...");
+
                 // Autenticación anónima
                 await auth.signInAnonymously();
-                console.log("✅ Conectado a Firebase");
-                
-                // Cargar datos iniciales
-                await initializeData();
-                
-                // Escuchar cambios en tiempo real
+                console.log("✅ Autenticado anónimamente");
+
+                // Configurar listener en tiempo real
                 setupRealtimeListener();
                 
                 // Configurar interfaz
                 setupFormListeners();
                 
-                updateConnectionStatus('connected');
+                console.log("🚀 Firebase listo");
                 
             } catch (error) {
                 console.error("❌ Error Firebase:", error);
                 updateConnectionStatus('error');
                 showModal('Error de Conexión', 
-                    'No se pudo conectar a la base de datos. Los cambios no se guardarán.', 
+                    `No se pudo conectar a Firebase. Error: ${error.message}`, 
                     () => {}
                 );
             }
@@ -156,76 +157,98 @@
 
         function updateConnectionStatus(status) {
             const element = document.getElementById('connection-status');
+            const syncText = document.getElementById('sync-status');
+            
             element.classList.remove('bg-green-100', 'bg-red-100', 'bg-yellow-100', 'text-green-700', 'text-red-700', 'text-yellow-700');
             
             if (status === 'connected') {
                 element.textContent = 'Conectado ✓';
                 element.classList.add('bg-green-100', 'text-green-700');
+                syncText.textContent = 'Sincronizado en tiempo real';
+                syncText.classList.remove('text-gray-600', 'text-red-600');
+                syncText.classList.add('text-green-600');
+                isOnline = true;
             } else if (status === 'error') {
                 element.textContent = 'Error de Conexión ✗';
                 element.classList.add('bg-red-100', 'text-red-700');
+                syncText.textContent = 'Modo local (sin sincronización)';
+                syncText.classList.remove('text-gray-600', 'text-green-600');
+                syncText.classList.add('text-red-600');
+                isOnline = false;
+                // Mostrar datos de ejemplo
+                showExampleData();
             } else {
                 element.textContent = 'Conectando...';
                 element.classList.add('bg-yellow-100', 'text-yellow-700');
-            }
-        }
-
-        async function initializeData() {
-            const snapshot = await db.collection('sponsorships').get();
-            
-            if (snapshot.empty) {
-                // Datos iniciales
-                const initialData = [
-                    { name: 'Moss', amount: 2000, status: 'pending', notes: 'Pendiente de pago por transferencia.' },
-                    { name: 'Puma', amount: 900, status: 'pending', notes: 'Esperando referencia de pago.' },
-                    { name: 'Gp', amount: 1000, status: 'paid', notes: 'Pagado en cash. Cerrado.' },
-                    { name: 'Arcoweld', amount: 700, status: 'pending', notes: 'Envío de recordatorio pendiente.' },
-                    { name: 'Mi casino', amount: 450, status: 'pending', notes: 'Verificar documentación.' },
-                    { name: 'Solverapp', amount: 550, status: 'paid', notes: 'Pagado en cash. Cerrado.' },
-                ];
-                
-                // Agregar datos iniciales
-                for (const item of initialData) {
-                    await db.collection('sponsorships').add({
-                        ...item,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-                console.log("📊 Datos iniciales creados");
+                syncText.textContent = 'Conectando a la base de datos...';
+                syncText.classList.remove('text-green-600', 'text-red-600');
+                syncText.classList.add('text-gray-600');
             }
         }
 
         function setupRealtimeListener() {
+            console.log("🎯 Configurando listener...");
+            
             db.collection('sponsorships').onSnapshot((snapshot) => {
                 sponsorships = [];
                 snapshot.forEach(doc => {
+                    const data = doc.data();
                     sponsorships.push({
                         id: doc.id,
-                        ...doc.data()
+                        ...data
                     });
                 });
                 
+                console.log(`📊 ${sponsorships.length} patrocinios cargados`);
                 renderSponsorships();
-                console.log("🔄 Datos actualizados en tiempo real");
+                updateConnectionStatus('connected');
+                
             }, (error) => {
-                console.error("Error en listener:", error);
+                console.error("❌ Error en listener:", error);
                 updateConnectionStatus('error');
             });
         }
 
+        function showExampleData() {
+            console.log("📋 Mostrando datos de ejemplo...");
+            const exampleData = [
+                { id: '1', name: 'Moss', amount: 2000, status: 'pending', notes: 'Pendiente de pago por transferencia.' },
+                { id: '2', name: 'Puma', amount: 900, status: 'pending', notes: 'Esperando referencia de pago.' },
+                { id: '3', name: 'Gp', amount: 1000, status: 'paid', notes: 'Pagado en cash. Cerrado.' },
+                { id: '4', name: 'Arcoweld', amount: 700, status: 'pending', notes: 'Envío de recordatorio pendiente.' },
+                { id: '5', name: 'Mi casino', amount: 450, status: 'pending', notes: 'Verificar documentación.' },
+                { id: '6', name: 'Solverapp', amount: 550, status: 'paid', notes: 'Pagado en cash. Cerrado.' },
+                { id: '7', name: 'Nueva Oportunidad', amount: 1200, status: 'negotiation', notes: 'Primer contacto establecido' }
+            ];
+            
+            sponsorships = exampleData;
+            renderSponsorships();
+        }
+
         async function updateSponsorshipStatus(id, newStatus) {
+            if (!isOnline) {
+                showModal('Sin Conexión', 'No hay conexión a Internet. Los cambios no se guardarán.', () => {});
+                return;
+            }
+            
             try {
                 await db.collection('sponsorships').doc(id).update({
                     status: newStatus,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                console.log(`✅ Actualizado: ${id} -> ${newStatus}`);
             } catch (error) {
                 console.error("Error actualizando:", error);
-                throw error;
+                showModal('Error', 'No se pudo actualizar. Revisa la conexión.', () => {});
             }
         }
 
         async function addSponsorship(name, amount, notes) {
+            if (!isOnline) {
+                showModal('Sin Conexión', 'No hay conexión. No se puede agregar nuevo patrocinio.', () => {});
+                return false;
+            }
+            
             try {
                 await db.collection('sponsorships').add({
                     name: name,
@@ -234,9 +257,11 @@
                     status: 'negotiation',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                console.log("✅ Nuevo patrocinio agregado:", name);
                 return true;
             } catch (error) {
                 console.error("Error agregando:", error);
+                showModal('Error', 'No se pudo guardar. Revisa la conexión.', () => {});
                 return false;
             }
         }
@@ -331,9 +356,9 @@
                         form.reset();
                         formContainer.classList.add('hidden');
                         addBtn.classList.remove('hidden');
-                    } else {
-                        showModal('Error', 'No se pudo guardar. Revisa la conexión.', () => {});
                     }
+                } else {
+                    showModal('Datos Incompletos', 'Por favor, completa al menos el nombre y el monto.', () => {});
                 }
             });
         }
