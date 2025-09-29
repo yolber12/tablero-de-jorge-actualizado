@@ -9,12 +9,17 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; min-height: 100vh; }
-        .kanban-column { min-width: 280px; max-width: 320px; background-color: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); }
-        .card { cursor: grab; transition: transform 0.1s ease, box-shadow 0.1s ease; }
-        .card:active { cursor: grabbing; transform: scale(1.02); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); }
+        /* Aumentar ancho máximo de columna para dar espacio a 4 columnas en pantallas grandes */
+        .kanban-column { min-width: 280px; max-width: 300px; background-color: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); }
+        .card { cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
+        .card:hover { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
+        .card:active { transform: scale(1.02); }
         .drag-over { background-color: #e0e7ff; border-color: #3b82f6; }
         .fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Clases de Riesgo */
+        .risk-orange { border-color: #f97316 !important; background-color: #fff7ed !important; }
+        .risk-red { border-color: #ef4444 !important; background-color: #fee2e2 !important; }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -31,20 +36,97 @@
                 Conectando...
             </span>
         </div>
-        <div class="mt-6 p-5 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl shadow-lg flex justify-between items-center">
-            <p class="text-white font-bold text-xl flex items-center">
-                <i data-lucide="dollar-sign" class="w-6 h-6 mr-3 text-white"></i>
-                Capital Proyectado Total:
-            </p>
-            <span id="total-amount" class="text-4xl font-extrabold text-yellow-300 ml-4">$0.00</span>
+        
+        <!-- Tarjetas de Resumen de Capital (Opción 3) -->
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            
+            <!-- Capital en Negociación (Filtrado) -->
+            <div class="p-5 bg-blue-100 rounded-xl shadow-md border-b-4 border-blue-500">
+                <p class="text-sm font-semibold text-blue-700 uppercase mb-1">En Negociación (Filtro)</p>
+                <div class="flex items-center justify-between">
+                    <span id="capital-negotiation" class="text-2xl font-extrabold text-blue-800">$0.00</span>
+                    <i data-lucide="bar-chart-2" class="w-6 h-6 text-blue-500"></i>
+                </div>
+            </div>
+
+            <!-- Capital Pendiente de Pago (Filtrado) -->
+            <div class="p-5 bg-yellow-100 rounded-xl shadow-md border-b-4 border-yellow-500">
+                <p class="text-sm font-semibold text-yellow-700 uppercase mb-1">Pendiente de Pago (Filtro)</p>
+                <div class="flex items-center justify-between">
+                    <span id="capital-pending" class="text-2xl font-extrabold text-yellow-800">$0.00</span>
+                    <i data-lucide="alert-triangle" class="w-6 h-6 text-yellow-500"></i>
+                </div>
+            </div>
+
+            <!-- Capital Recibido (Pagado) (Filtrado) -->
+            <div class="p-5 bg-green-100 rounded-xl shadow-md border-b-4 border-green-500">
+                <p class="text-sm font-semibold text-green-700 uppercase mb-1">Capital Recibido (Filtro)</p>
+                <div class="flex items-center justify-between">
+                    <span id="capital-paid" class="text-2xl font-extrabold text-green-800">$0.00</span>
+                    <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
+                </div>
+            </div>
+            
+            <!-- Capital Proyectado TOTAL (Negociación + Pendiente + Pagado) (Filtrado) -->
+            <div class="p-5 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl shadow-lg border-b-4 border-indigo-300">
+                <p class="text-sm font-semibold text-indigo-200 uppercase mb-1">Capital Proyectado Total (Filtro)</p>
+                <div class="flex items-center justify-between">
+                    <span id="total-amount" class="text-2xl font-extrabold text-white">$0.00</span>
+                    <i data-lucide="trending-up" class="w-6 h-6 text-white"></i>
+                </div>
+            </div>
+
+            <!-- Capital Total Histórico Recibido (Pagado) (SIN FILTRO) -->
+            <div class="p-5 bg-purple-100 rounded-xl shadow-md border-b-4 border-purple-600">
+                <p class="text-sm font-semibold text-purple-700 uppercase mb-1">Total Generado Histórico (PAGADO)</p>
+                <div class="flex items-center justify-between">
+                    <span id="historical-total-paid" class="text-2xl font-extrabold text-purple-800">$0.00</span>
+                    <i data-lucide="wallet" class="w-6 h-6 text-purple-600"></i>
+                </div>
+            </div>
+
         </div>
+        
+        <!-- Controles de Filtro -->
+        <div class="mt-6 space-y-4 md:space-y-0 md:flex md:justify-between md:items-center">
+            
+            <!-- Filtros por Fecha -->
+            <div class="p-4 md:p-5 bg-gray-50 rounded-xl shadow-inner border border-gray-200 flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4 items-stretch md:items-center w-full md:w-auto">
+                <label class="font-bold text-gray-700 text-lg flex items-center">
+                    <i data-lucide="calendar" class="w-5 h-5 mr-2 text-indigo-500"></i>
+                    Filtrar por Fecha:
+                </label>
+                <select id="filter-year" class="p-2 border border-gray-300 rounded-lg text-base bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-auto" onchange="applyFilter()">
+                    <option value="all">Todo el Historial</option>
+                </select>
+                <select id="filter-month" class="p-2 border border-gray-300 rounded-lg text-base bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-auto" onchange="applyFilter()">
+                    <option value="all">Todos los Meses</option>
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+            </div>
+        </div>
+        
     </header>
 
     <main class="flex flex-row overflow-x-auto gap-6 justify-center">
+        <!-- Columna NEGOCIACIÓN -->
         <div id="negotiation" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'negotiation')" ondragleave="handleDragLeave(event)">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center">
-                <i data-lucide="clock" class="w-5 h-5 mr-2 text-blue-500"></i>
-                Fase I: Propuesta y Negociación
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center justify-between">
+                <div class="flex items-center">
+                    <i data-lucide="clock" class="w-5 h-5 mr-2 text-blue-500"></i>
+                    Fase I: Propuesta y Negociación
+                </div>
                 <span class="ml-2 text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full" id="negotiation-count">0</span>
             </h2>
             <button id="add-sponsorship-btn" class="mb-4 w-full flex items-center justify-center px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-150 shadow-md">
@@ -64,32 +146,100 @@
                     </div>
                 </form>
             </div>
+            <!-- Selector de Ordenamiento -->
+            <div class="mb-4 flex items-center">
+                <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-500"></i>
+                <select id="sort-negotiation" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500" onchange="sortColumn('negotiation', this.value)">
+                    <option value="default">Ordenar por...</option>
+                    <option value="amount_desc">Monto Mayor</option>
+                    <option value="amount_asc">Monto Menor</option>
+                    <option value="name_asc">Nombre A-Z</option>
+                    <option value="name_desc">Nombre Z-A</option>
+                </select>
+            </div>
             <div id="negotiation-list" class="space-y-4 flex-grow"></div>
         </div>
 
+        <!-- Columna PENDIENTE -->
         <div id="pending" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'pending')" ondragleave="handleDragLeave(event)">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center">
-                <i data-lucide="dollar-sign" class="w-5 h-5 mr-2 text-yellow-500"></i>
-                Fase II: Acuerdos en Cierre
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center justify-between">
+                <div class="flex items-center">
+                    <i data-lucide="dollar-sign" class="w-5 h-5 mr-2 text-yellow-500"></i>
+                    Fase II: Acuerdos en Cierre
+                </div>
                 <span class="ml-2 text-sm bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full" id="pending-count">0</span>
             </h2>
+            <!-- Selector de Ordenamiento -->
+            <div class="mb-4 flex items-center">
+                <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-500"></i>
+                <select id="sort-pending" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500" onchange="sortColumn('pending', this.value)">
+                    <option value="default">Ordenar por...</option>
+                    <option value="amount_desc">Monto Mayor</option>
+                    <option value="amount_asc">Monto Menor</option>
+                    <option value="name_asc">Nombre A-Z</option>
+                    <option value="name_desc">Nombre Z-A</option>
+                </select>
+            </div>
             <div id="pending-list" class="space-y-4 flex-grow"></div>
         </div>
 
+        <!-- Columna PAGADO -->
         <div id="paid" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'paid')" ondragleave="handleDragLeave(event)">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center">
-                <i data-lucide="check-circle" class="w-5 h-5 mr-2 text-green-500"></i>
-                Fase III: Éxito y Cierre de Capital
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center justify-between">
+                <div class="flex items-center">
+                    <i data-lucide="check-circle" class="w-5 h-5 mr-2 text-green-500"></i>
+                    Fase III: Éxito y Cierre de Capital
+                </div>
                 <span class="ml-2 text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full" id="paid-count">0</span>
             </h2>
+            <!-- Selector de Ordenamiento -->
+            <div class="mb-4 flex items-center">
+                <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-500"></i>
+                <select id="sort-paid" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500" onchange="sortColumn('paid', this.value)">
+                    <option value="default">Ordenar por...</option>
+                    <option value="amount_desc">Monto Mayor</option>
+                    <option value="amount_asc">Monto Menor</option>
+                    <option value="name_asc">Nombre A-Z</option>
+                    <option value="name_desc">Nombre Z-A</option>
+                </select>
+            </div>
             <div id="paid-list" class="space-y-4 flex-grow"></div>
+        </div>
+
+        <!-- Columna PERDIDO (Nueva columna para medir el fracaso) -->
+        <div id="lost" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'lost')" ondragleave="handleDragLeave(event)">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center justify-between">
+                <div class="flex items-center">
+                    <i data-lucide="x-circle" class="w-5 h-5 mr-2 text-red-500"></i>
+                    Oportunidades Perdidas
+                </div>
+                <span class="ml-2 text-sm bg-red-100 text-red-700 px-2 py-1 rounded-full" id="lost-count">0</span>
+            </h2>
+            <!-- Selector de Ordenamiento -->
+            <div class="mb-4 flex items-center">
+                <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-500"></i>
+                <select id="sort-lost" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500" onchange="sortColumn('lost', this.value)">
+                    <option value="default">Ordenar por...</option>
+                    <option value="amount_desc">Monto Mayor</option>
+                    <option value="amount_asc">Monto Menor</option>
+                    <option value="name_asc">Nombre A-Z</option>
+                    <option value="name_desc">Nombre Z-A</option>
+                </select>
+            </div>
+            <div id="lost-list" class="space-y-4 flex-grow"></div>
         </div>
     </main>
 
+    <!-- Modal de ACCIÓN/CONFIRMACIÓN (para arrastrar y eliminar) -->
     <div id="action-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm">
             <h3 id="modal-title" class="text-lg font-bold mb-4 text-gray-800">Confirmar Acción</h3>
             <p id="modal-message" class="mb-6 text-gray-600"></p>
+            <!-- Campo opcional para Motivo de Pérdida -->
+            <div id="loss-reason-field" class="hidden mb-6">
+                <label for="loss-reason" class="block text-sm font-medium text-gray-700 mb-1">Motivo de la Pérdida</label>
+                <textarea id="loss-reason" rows="2" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Ej: Precio de la competencia, Presupuesto agotado"></textarea>
+            </div>
             <div class="flex justify-end space-x-3">
                 <button id="modal-cancel" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">Cancelar</button>
                 <button id="modal-confirm" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Confirmar</button>
@@ -97,12 +247,61 @@
         </div>
     </div>
 
+    <!-- Modal de EDICIÓN (para ver/modificar detalles) -->
+    <div id="edit-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg transform transition-all duration-300 scale-100">
+            <h3 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center justify-between">
+                Detalles del Patrocinio
+                <button id="edit-modal-close" class="text-gray-400 hover:text-gray-600 transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </h3>
+            <form id="edit-sponsorship-form">
+                <input type="hidden" id="edit-sponsorship-id">
+                
+                <div class="mb-4">
+                    <label for="edit-sponsorship-name" class="block text-sm font-medium text-gray-700 mb-1">Nombre de la Marca</label>
+                    <input type="text" id="edit-sponsorship-name" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="mb-4">
+                    <label for="edit-sponsorship-amount" class="block text-sm font-medium text-gray-700 mb-1">Monto Proyectado ($)</label>
+                    <input type="number" id="edit-sponsorship-amount" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" min="0">
+                </div>
+                
+                <div class="mb-6">
+                    <label for="edit-sponsorship-notes" class="block text-sm font-medium text-gray-700 mb-1">Notas Clave</label>
+                    <textarea id="edit-sponsorship-notes" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                
+                <!-- Campo de Motivo de Pérdida (solo visible si status es 'lost') -->
+                <div id="edit-loss-reason-container" class="mb-6 hidden">
+                    <label for="edit-loss-reason" class="block text-sm font-medium text-gray-700 mb-1">Motivo por el que se Perdió</label>
+                    <textarea id="edit-loss-reason" rows="2" class="w-full p-3 border border-gray-300 rounded-lg bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"></textarea>
+                </div>
+
+                <div class="flex justify-between items-center border-t pt-4">
+                    <button type="button" id="delete-sponsorship-btn" class="flex items-center px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition shadow-md">
+                        <i data-lucide="trash-2" class="w-5 h-5 mr-2"></i>
+                        Eliminar Patrocinio
+                    </button>
+                    <button type="submit" class="flex items-center px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition shadow-lg">
+                        <i data-lucide="save" class="w-5 h-5 mr-2"></i>
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- SCRIPTS DE FIREBASE CON LAS LIBRERÍAS COMPAT -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <script>
-        // CONFIGURACIÓN DE FIREBASE - CORRECTA
+        // CONFIGURACIÓN DE FIREBASE - Mantenida como está en tu repositorio
         const firebaseConfig = {
             apiKey: "AIzaSyA1UPMYdUxOPfBpExXsdWJO_AUjaqW4x5U",
             authDomain: "tablero-jorge.firebaseapp.com",
@@ -119,31 +318,28 @@
         
         lucide.createIcons();
 
-        let sponsorships = [];
+        let allSponsorships = []; // Almacena todos los patrocinios (sin filtrar)
         let isOnline = false;
+        let columnSorts = { negotiation: 'default', pending: 'default', paid: 'default', lost: 'default' }; // Estado de ordenamiento
+        let draggedId = null; // ID de la tarjeta que se está arrastrando
 
-        // Configurar Firebase
+        // --- INICIALIZACIÓN Y CONEXIÓN ---
         async function initFirebase() {
             try {
                 updateConnectionStatus('connecting');
-                console.log("🔄 Iniciando Firebase...");
+                
+                populateYearFilter();
 
-                // Autenticación anónima
                 await auth.signInAnonymously();
-                console.log("✅ Autenticado anónimamente");
 
-                // Configurar listener en tiempo real
                 setupRealtimeListener();
-                
-                // Configurar interfaz
                 setupFormListeners();
-                
-                console.log("🚀 Firebase listo");
+                setupModalListeners();
                 
             } catch (error) {
                 console.error("❌ Error Firebase:", error);
                 updateConnectionStatus('error');
-                showModal('Error de Conexión', 
+                showConfirmationModal('Error de Conexión', 
                     `No se pudo conectar a Firebase. Error: ${error.message}`, 
                     () => {}
                 );
@@ -170,7 +366,7 @@
                 syncText.classList.remove('text-gray-600', 'text-green-600');
                 syncText.classList.add('text-red-600');
                 isOnline = false;
-                // Mostrar datos de ejemplo
+                // En caso de error, mostrar datos de ejemplo para que la UI no quede vacía
                 showExampleData();
             } else {
                 element.textContent = 'Conectando...';
@@ -182,20 +378,26 @@
         }
 
         function setupRealtimeListener() {
-            console.log("🎯 Configurando listener...");
-            
             db.collection('sponsorships').onSnapshot((snapshot) => {
-                sponsorships = [];
+                allSponsorships = [];
+                const years = new Set();
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    sponsorships.push({
+                    const sponsorship = {
                         id: doc.id,
-                        ...data
-                    });
+                        ...data,
+                        // Convertir el timestamp de Firebase a objeto Date para facilitar el filtrado
+                        createdAt: data.createdAt ? data.createdAt.toDate() : new Date(), 
+                    };
+                    allSponsorships.push(sponsorship);
+                    if (sponsorship.createdAt instanceof Date) {
+                        years.add(sponsorship.createdAt.getFullYear());
+                    }
                 });
                 
-                console.log(`📊 ${sponsorships.length} patrocinios cargados`);
-                renderSponsorships();
+                // Asegurar que el filtro de años se actualice dinámicamente
+                populateYearFilter(Array.from(years));
+                applyFilter(); // Aplicar el filtro después de cargar los datos
                 updateConnectionStatus('connected');
                 
             }, (error) => {
@@ -203,44 +405,112 @@
                 updateConnectionStatus('error');
             });
         }
-
-        function showExampleData() {
-            console.log("📋 Mostrando datos de ejemplo...");
-            const exampleData = [
-                { id: '1', name: 'Moss', amount: 2000, status: 'pending', notes: 'Pendiente de pago por transferencia.' },
-                { id: '2', name: 'Puma', amount: 900, status: 'pending', notes: 'Esperando referencia de pago.' },
-                { id: '3', name: 'Gp', amount: 1000, status: 'paid', notes: 'Pagado en cash. Cerrado.' },
-                { id: '4', name: 'Arcoweld', amount: 700, status: 'pending', notes: 'Envío de recordatorio pendiente.' },
-                { id: '5', name: 'Mi casino', amount: 450, status: 'pending', notes: 'Verificar documentación.' },
-                { id: '6', name: 'Solverapp', amount: 550, status: 'paid', notes: 'Pagado en cash. Cerrado.' },
-                { id: '7', name: 'Nueva Oportunidad', amount: 1200, status: 'negotiation', notes: 'Primer contacto establecido' }
-            ];
+        
+        // Función para poblar dinámicamente el selector de años
+        function populateYearFilter(yearList = []) {
+            const yearSelect = document.getElementById('filter-year');
+            const currentSelectedYear = yearSelect.value;
             
-            sponsorships = exampleData;
-            renderSponsorships();
+            const optionsToKeep = yearSelect.querySelector('option[value="all"]').outerHTML;
+            yearSelect.innerHTML = optionsToKeep;
+
+            const sortedYears = Array.from(new Set(yearList)).sort((a, b) => b - a);
+
+            sortedYears.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            });
+            
+            // Restaurar la selección anterior si existe
+            if (currentSelectedYear && yearSelect.querySelector(`option[value="${currentSelectedYear}"]`)) {
+                yearSelect.value = currentSelectedYear;
+            }
         }
 
-        async function updateSponsorshipStatus(id, newStatus) {
+        function showExampleData() {
+            const now = new Date();
+            const eightDaysAgo = new Date();
+            eightDaysAgo.setDate(now.getDate() - 8);
+            
+            const exampleData = [
+                { id: '1', name: 'Moss (Riesgo Naranja)', amount: 2000, status: 'negotiation', notes: 'No ha respondido en 8 días.', createdAt: eightDaysAgo },
+                { id: '2', name: 'Puma (Negociación Activa)', amount: 900, status: 'negotiation', notes: 'Revisión final de contrato.', createdAt: now },
+                { id: '3', name: 'Gp (Pagado)', amount: 1000, status: 'paid', notes: 'Pagado en cash. Cerrado.', createdAt: now },
+                { id: '4', name: 'Arcoweld (Perdido)', amount: 700, status: 'lost', notes: 'El cliente se fue con la competencia.', lossReason: 'Precio de la competencia' , createdAt: eightDaysAgo },
+                { id: '5', name: 'Mi casino (Riesgo Rojo)', amount: 450, status: 'negotiation', notes: 'Sin respuesta en 11 días.', createdAt: new Date(now.getTime() - 11 * 24 * 60 * 60 * 1000) },
+                { id: '6', name: 'Solverapp (Pagado)', amount: 550, status: 'pending', notes: 'Pendiente de transferencia.', createdAt: eightDaysAgo },
+                { id: '7', name: 'Zeta Corp', amount: 1200, status: 'pending', notes: 'Firma de acuerdo pendiente', createdAt: now }
+            ];
+            
+            allSponsorships = exampleData;
+            applyFilter();
+        }
+
+        // --- LÓGICA DE FILTRADO ---
+
+        function applyFilter() {
+            const selectedYear = document.getElementById('filter-year').value;
+            const selectedMonth = document.getElementById('filter-month').value;
+
+            // El filtrado por fecha SOLO aplica a las columnas de CAPITAL (negotiation, pending, paid)
+            // Las oportunidades perdidas (lost) siempre se muestran, sin importar el filtro de fecha, 
+            // ya que son un histórico de fracasos que se analiza aparte.
+
+            renderSponsorships(); // El renderizado se encargará de usar el filtro solo donde es relevante
+        }
+
+
+        // --- CRUD EN FIREBASE ---
+        async function updateSponsorship(id, data) {
             if (!isOnline) {
-                showModal('Sin Conexión', 'No hay conexión a Internet. Los cambios no se guardarán.', () => {});
+                showConfirmationModal('Sin Conexión', 'No hay conexión a Internet. Los cambios no se guardarán.', () => {});
                 return;
             }
             
             try {
                 await db.collection('sponsorships').doc(id).update({
-                    status: newStatus,
+                    ...data,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log(`✅ Actualizado: ${id} -> ${newStatus}`);
+                console.log(`✅ Actualizado: ${id}`);
             } catch (error) {
                 console.error("Error actualizando:", error);
-                showModal('Error', 'No se pudo actualizar. Revisa la conexión.', () => {});
+                showConfirmationModal('Error', 'No se pudo actualizar. Revisa la conexión.', () => {});
+            }
+        }
+
+        async function updateSponsorshipStatus(id, newStatus, lossReason = null) {
+            const updateData = { status: newStatus };
+            if (newStatus === 'lost' && lossReason) {
+                updateData.lossReason = lossReason;
+            } else if (newStatus !== 'lost') {
+                // Asegurar que si regresa a una columna de capital, se borre el motivo de pérdida
+                updateData.lossReason = firebase.firestore.FieldValue.delete();
+            }
+            await updateSponsorship(id, updateData);
+        }
+        
+        async function deleteSponsorship(id) {
+            if (!isOnline) {
+                showConfirmationModal('Sin Conexión', 'No hay conexión a Internet. No se puede eliminar.', () => {});
+                return;
+            }
+
+            try {
+                await db.collection('sponsorships').doc(id).delete();
+                console.log(`🗑️ Eliminado: ${id}`);
+                hideEditModal();
+            } catch (error) {
+                console.error("Error eliminando:", error);
+                showConfirmationModal('Error', 'No se pudo eliminar. Revisa la conexión.', () => {});
             }
         }
 
         async function addSponsorship(name, amount, notes) {
             if (!isOnline) {
-                showModal('Sin Conexión', 'No hay conexión. No se puede agregar nuevo patrocinio.', () => {});
+                showConfirmationModal('Sin Conexión', 'No hay conexión. No se puede agregar nuevo patrocinio.', () => {});
                 return false;
             }
             
@@ -252,107 +522,257 @@
                     status: 'negotiation',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log("✅ Nuevo patrocinio agregado:", name);
                 return true;
             } catch (error) {
                 console.error("Error agregando:", error);
-                showModal('Error', 'No se pudo guardar. Revisa la conexión.', () => {});
+                showConfirmationModal('Error', 'No se pudo guardar. Revisa la conexión.', () => {});
                 return false;
             }
+        }
+
+        // --- RENDERIZADO Y LÓGICA DE COLUMNAS ---
+        function sortColumn(status, sortBy) {
+            columnSorts[status] = sortBy;
+            renderSponsorships();
+        }
+        
+        // Aplica filtros y ordenamiento
+        function getSortedSponsorships(status) {
+            const selectedYear = document.getElementById('filter-year').value;
+            const selectedMonth = document.getElementById('filter-month').value;
+            
+            let columnSponsorships = allSponsorships.filter(s => s.status === status);
+
+            // Filtrado por fecha: SOLO aplica a columnas de Capital (negotiation, pending, paid)
+            if (['negotiation', 'pending', 'paid'].includes(status)) {
+                 columnSponsorships = columnSponsorships.filter(sponsorship => {
+                    const date = sponsorship.createdAt;
+                    if (!date) return true; // Incluir si no tiene fecha
+
+                    const isYearMatch = selectedYear === 'all' || date.getFullYear().toString() === selectedYear;
+                    const isMonthMatch = selectedMonth === 'all' || (date.getMonth() + 1).toString() === selectedMonth;
+
+                    return isYearMatch && isMonthMatch;
+                });
+            }
+
+            const sortBy = columnSorts[status];
+
+            switch (sortBy) {
+                case 'amount_desc':
+                    columnSponsorships.sort((a, b) => (b.amount || 0) - (a.amount || 0));
+                    break;
+                case 'amount_asc':
+                    columnSponsorships.sort((a, b) => (a.amount || 0) - (b.amount || 0));
+                    break;
+                case 'name_asc':
+                    columnSponsorships.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'name_desc':
+                    columnSponsorships.sort((a, b) => b.name.localeCompare(a.name));
+                    break;
+                case 'default':
+                default:
+                    // Ordenar por fecha más reciente por defecto
+                    columnSponsorships.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+                    break;
+            }
+            return columnSponsorships;
+        }
+
+        function formatDate(date) {
+            if (!date || !(date instanceof Date)) return 'N/A';
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+        
+        // --- FUNCIÓN CENTRAL DE ALERTAS VISUALES ---
+        function getRiskClasses(sponsorship) {
+            if (sponsorship.status !== 'negotiation') {
+                return '';
+            }
+
+            const now = new Date();
+            const created = sponsorship.createdAt;
+            
+            if (!created || !(created instanceof Date)) return '';
+            
+            // Diferencia en milisegundos
+            const diffTime = Math.abs(now.getTime() - created.getTime());
+            // Diferencia en días
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+            if (diffDays > 10) {
+                return 'risk-red'; // Más de 10 días: ROJO (Alto Riesgo)
+            } else if (diffDays > 7) {
+                return 'risk-orange'; // Más de 7 días: NARANJA (Alerta)
+            }
+            return ''; // Retorna cadena vacía si no hay riesgo
         }
 
         function createCardElement(sponsorship) {
             const card = document.createElement('div');
             card.className = 'card bg-white p-4 rounded-lg shadow-md border-t-4 mb-4 fade-in';
-            card.setAttribute('draggable', true);
             card.setAttribute('data-id', sponsorship.id);
             card.setAttribute('data-status', sponsorship.status);
 
             const statusConfig = {
                 'pending': { border: 'border-yellow-500', icon: 'dollar-sign', color: 'text-yellow-500', text: 'PENDIENTE' },
                 'paid': { border: 'border-green-500', icon: 'check-circle', color: 'text-green-500', text: 'CAPITAL RECIBIDO' },
-                'negotiation': { border: 'border-blue-500', icon: 'clock', color: 'text-blue-500', text: 'EN NEGOCIACIÓN' }
+                'negotiation': { border: 'border-blue-500', icon: 'clock', color: 'text-blue-500', text: 'EN NEGOCIACIÓN' },
+                'lost': { border: 'border-gray-400', icon: 'slash', color: 'text-gray-500', text: 'PERDIDO' }
             };
 
-            // CORRECCIÓN 1: Evita el TypeError si el estado no está definido, usando 'negotiation' como respaldo.
             const config = statusConfig[sponsorship.status] || statusConfig['negotiation']; 
             const formattedAmount = `$${(sponsorship.amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+            const creationDate = formatDate(sponsorship.createdAt);
+            
+            // Aplicar las clases de riesgo para la fase de Negociación
+            let riskClasses = '';
+            if (sponsorship.status === 'negotiation') {
+                riskClasses = getRiskClasses(sponsorship);
+                // FIX: Solo añadir la clase si no es una cadena vacía
+                if (riskClasses) {
+                    card.classList.add(riskClasses);
+                }
+            }
+            
+            let extraInfo = '';
+            if (sponsorship.status === 'lost' && sponsorship.lossReason) {
+                extraInfo = `<p class="text-xs text-red-600 font-semibold mt-1">Motivo: ${sponsorship.lossReason}</p>`;
+            }
 
             card.innerHTML = `
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-widest">${config.text}</span>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-widest">${config.text}</span>
+                        <span class="text-xs font-medium text-gray-400">| Creado: ${creationDate}</span>
+                    </div>
+                    <button class="edit-card-btn text-gray-400 hover:text-indigo-600 transition p-1 rounded-full hover:bg-gray-100" data-id="${sponsorship.id}" title="Click para editar.">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
                 </div>
                 <h3 class="text-lg font-bold text-gray-800 mb-1">${sponsorship.name}</h3>
                 <p class="text-2xl font-extrabold ${config.color} mb-2 flex items-center">
                     <i data-lucide="${config.icon}" class="w-5 h-5 mr-2"></i>
                     ${formattedAmount}
                 </p>
-                ${sponsorship.notes ? `<p class="text-sm text-gray-500 italic mt-2">${sponsorship.notes}</p>` : ''}
+                ${sponsorship.notes ? `<p class="text-sm text-gray-500 italic mt-2 line-clamp-2">${sponsorship.notes}</p>` : ''}
+                ${extraInfo}
             `;
+            
+            // Añadir la clase de borde base (puede ser sobrescrita por las clases de riesgo)
             card.classList.add(config.border);
             
-            // CORRECCIÓN 2: Eliminamos la llamada problemática. La creacion de iconos se hace al final de renderSponsorships.
-            // lucide.createIcons({ icons: [config.icon] }); 
+            const editButton = card.querySelector('.edit-card-btn');
+            editButton.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                showEditModal(sponsorship.id);
+            });
             
+            card.setAttribute('draggable', true);
             card.addEventListener('dragstart', handleDragStart);
             
             return card;
         }
 
+        // Nuevo: Función para calcular el total pagado de todo el historial (sin filtros)
+        function calculateHistoricalTotalPaid() {
+            return allSponsorships.reduce((sum, s) => {
+                if (s.status === 'paid') {
+                    return sum + (s.amount || 0);
+                }
+                return sum;
+            }, 0);
+        }
+
         function renderSponsorships() {
             // Limpiar columnas
-            ['negotiation', 'pending', 'paid'].forEach(status => {
+            ['negotiation', 'pending', 'paid', 'lost'].forEach(status => {
                 document.getElementById(`${status}-list`).innerHTML = '';
             });
 
-            let totalAmount = 0;
-            const counts = { negotiation: 0, pending: 0, paid: 0 };
-            
-            // Definir un estado seguro si el que viene de Firebase es inválido
-            const validStatuses = ['negotiation', 'pending', 'paid'];
+            let totalNegotiation = 0;
+            let totalPending = 0;
+            let totalPaid = 0;
+            let totalLost = 0; // Sumar para contador visual, pero NO para "Total Proyectado"
 
-            sponsorships.forEach(sponsorship => {
-                totalAmount += sponsorship.amount || 0;
+            const counts = { negotiation: 0, pending: 0, paid: 0, lost: 0 };
+            
+            const allStatuses = ['negotiation', 'pending', 'paid', 'lost'];
+
+            allStatuses.forEach(statusKey => {
+                const columnData = getSortedSponsorships(statusKey);
+                const listElement = document.getElementById(`${statusKey}-list`);
                 
-                // CORRECCIÓN 3: Asegura que el estado para contar y renderizar es válido
-                const statusKey = validStatuses.includes(sponsorship.status) ? sponsorship.status : 'negotiation';
-                
-                counts[statusKey]++;
-                
-                const card = createCardElement(sponsorship);
-                document.getElementById(`${statusKey}-list`).appendChild(card);
+                columnData.forEach(sponsorship => {
+                    const amount = sponsorship.amount || 0;
+                    
+                    // Sumar montos para las tarjetas de resumen FILTRADAS
+                    if (statusKey === 'negotiation') {
+                        totalNegotiation += amount;
+                    } else if (statusKey === 'pending') {
+                        totalPending += amount;
+                    } else if (statusKey === 'paid') {
+                        totalPaid += amount;
+                    } else if (statusKey === 'lost') {
+                        totalLost += amount;
+                    }
+                    
+                    counts[statusKey]++;
+                    const card = createCardElement(sponsorship);
+                    listElement.appendChild(card);
+                });
             });
 
-            // Actualizar UI
-            document.getElementById('total-amount').textContent = 
-                `$${totalAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+
+            // --- Actualizar UI para el monto total y las tarjetas de resumen ---
+            const formatCurrency = (amount) => `$${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
             
+            // 1. Totales Filtrados
+            // El Total Proyectado SOLO suma Capital (Negociación, Pendiente, Pagado)
+            const totalProjected = totalNegotiation + totalPending + totalPaid; 
+            
+            document.getElementById('capital-negotiation').textContent = formatCurrency(totalNegotiation);
+            document.getElementById('capital-pending').textContent = formatCurrency(totalPending);
+            document.getElementById('capital-paid').textContent = formatCurrency(totalPaid);
+            document.getElementById('total-amount').textContent = formatCurrency(totalProjected);
+
+            // 2. Total Histórico Recibido (NUEVA TARJETA)
+            const historicalPaid = calculateHistoricalTotalPaid();
+            document.getElementById('historical-total-paid').textContent = formatCurrency(historicalPaid);
+            
+            // Actualizar UI para los contadores de las columnas
             Object.keys(counts).forEach(status => {
                 document.getElementById(`${status}-count`).textContent = counts[status];
             });
             
-            // LLAMADA GLOBAL (CORRECCIÓN 2): Crea todos los iconos de una vez
             lucide.createIcons(); 
         }
+
+        // --- LISTENERS DE FORMULARIOS Y MODALES ---
 
         function setupFormListeners() {
             const addBtn = document.getElementById('add-sponsorship-btn');
             const cancelBtn = document.getElementById('cancel-add-btn');
             const formContainer = document.getElementById('add-form-container');
-            const form = document.getElementById('add-sponsorship-form');
+            const addForm = document.getElementById('add-sponsorship-form');
 
             addBtn.addEventListener('click', () => {
                 formContainer.classList.remove('hidden');
                 addBtn.classList.add('hidden');
+                document.getElementById('sponsorship-name').focus();
             });
 
             cancelBtn.addEventListener('click', () => {
                 formContainer.classList.add('hidden');
                 addBtn.classList.remove('hidden');
-                form.reset();
+                addForm.reset();
             });
 
-            form.addEventListener('submit', async (e) => {
+            addForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const name = document.getElementById('sponsorship-name').value.trim();
                 const amount = document.getElementById('sponsorship-amount').value;
@@ -361,19 +781,101 @@
                 if (name && amount) {
                     const success = await addSponsorship(name, amount, notes);
                     if (success) {
-                        form.reset();
+                        addForm.reset();
                         formContainer.classList.add('hidden');
                         addBtn.classList.remove('hidden');
                     }
                 } else {
-                    showModal('Datos Incompletos', 'Por favor, completa al menos el nombre y el monto.', () => {});
+                    showConfirmationModal('Datos Incompletos', 'Por favor, completa al menos el nombre y el monto.', () => {});
                 }
             });
         }
+        
+        function setupModalListeners() {
+            // Cierre del modal de Edición
+            document.getElementById('edit-modal-close').addEventListener('click', hideEditModal);
+            document.getElementById('edit-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'edit-modal') hideEditModal();
+            });
 
-        // Drag & Drop
-        let draggedId = null;
+            // Formulario de Edición (Guardar Cambios)
+            document.getElementById('edit-sponsorship-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('edit-sponsorship-id').value;
+                const name = document.getElementById('edit-sponsorship-name').value.trim();
+                const amount = document.getElementById('edit-sponsorship-amount').value;
+                const notes = document.getElementById('edit-sponsorship-notes').value.trim();
+                const lossReason = document.getElementById('edit-loss-reason').value.trim(); // Obtener el motivo de pérdida
+                
+                if (name && amount) {
+                    // Solo si está en status 'lost' o si tiene un motivo de pérdida ingresado
+                    const updateData = {
+                        name: name,
+                        amount: parseFloat(amount),
+                        notes: notes
+                    };
+                    
+                    const sponsorship = allSponsorships.find(s => s.id === id);
+                    if (sponsorship.status === 'lost') {
+                         updateData.lossReason = lossReason;
+                    }
 
+                    await updateSponsorship(id, updateData);
+                    hideEditModal();
+                } else {
+                    showConfirmationModal('Datos Incompletos', 'Por favor, completa al menos el nombre y el monto.', () => {});
+                }
+            });
+
+            // Botón de Eliminar en el modal de Edición
+            document.getElementById('delete-sponsorship-btn').addEventListener('click', () => {
+                const id = document.getElementById('edit-sponsorship-id').value;
+                const name = document.getElementById('edit-sponsorship-name').value;
+                
+                // Muestra modal de confirmación
+                showConfirmationModal(
+                    'Confirmar Eliminación',
+                    `¿Estás seguro de que quieres eliminar permanentemente el patrocinio de <strong>${name}</strong>? Esta acción no se puede deshacer.`,
+                    () => deleteSponsorship(id)
+                );
+            });
+        }
+
+        function showEditModal(id) {
+            const sponsorship = allSponsorships.find(s => s.id === id);
+            if (!sponsorship) return;
+
+            // Rellenar formulario
+            document.getElementById('edit-sponsorship-id').value = id;
+            document.getElementById('edit-sponsorship-name').value = sponsorship.name;
+            document.getElementById('edit-sponsorship-amount').value = sponsorship.amount || 0;
+            document.getElementById('edit-sponsorship-notes').value = sponsorship.notes || '';
+            
+            const lossReasonContainer = document.getElementById('edit-loss-reason-container');
+            const editLossReason = document.getElementById('edit-loss-reason');
+
+            if (sponsorship.status === 'lost') {
+                lossReasonContainer.classList.remove('hidden');
+                editLossReason.value = sponsorship.lossReason || '';
+            } else {
+                lossReasonContainer.classList.add('hidden');
+                editLossReason.value = '';
+            }
+            
+            // Mostrar modal
+            document.getElementById('edit-modal').classList.remove('hidden');
+            document.getElementById('edit-modal').classList.add('flex');
+            document.getElementById('edit-sponsorship-name').focus();
+            lucide.createIcons();
+        }
+
+        function hideEditModal() {
+            document.getElementById('edit-modal').classList.remove('flex');
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+
+        // --- DRAG & DROP ---
         function handleDragStart(event) {
             draggedId = event.target.getAttribute('data-id');
             event.dataTransfer.setData('text/plain', draggedId);
@@ -393,41 +895,80 @@
             event.preventDefault();
             event.currentTarget.classList.remove('drag-over');
             
-            const card = document.querySelector(`[data-id="${draggedId}"]`);
-            if (card) card.classList.remove('opacity-50');
+            const cardElement = document.querySelector(`[data-id="${draggedId}"]`);
+            if (cardElement) cardElement.classList.remove('opacity-50');
 
-            const currentStatus = card.getAttribute('data-status');
+            if (!draggedId) return;
+
+            const currentStatus = cardElement.getAttribute('data-status');
             if (currentStatus === newStatus) return;
 
-            const sponsorship = sponsorships.find(s => s.id === draggedId);
+            const sponsorship = allSponsorships.find(s => s.id === draggedId);
             if (!sponsorship) return;
 
-            showModal(
-                'Confirmar Cambio',
-                `¿Mover <strong>${sponsorship.name}</strong> a <strong>${getStatusName(newStatus)}</strong>?`,
-                () => updateSponsorshipStatus(draggedId, newStatus)
-            );
+            // Lógica especial para la columna 'lost'
+            if (newStatus === 'lost') {
+                showConfirmationModal(
+                    'Confirmar Oportunidad Perdida',
+                    `Estás a punto de mover <strong>${sponsorship.name}</strong> a la columna PERDIDO. Por favor, especifica el motivo para el análisis futuro:`,
+                    (lossReason) => updateSponsorshipStatus(draggedId, newStatus, lossReason), // Pasamos la función de confirmación con el motivo
+                    true // Indica que debe mostrar el campo de motivo de pérdida
+                );
+            } else {
+                 showConfirmationModal(
+                    'Confirmar Cambio',
+                    `¿Mover <strong>${sponsorship.name}</strong> a <strong>${getStatusName(newStatus)}</strong>?`,
+                    () => updateSponsorshipStatus(draggedId, newStatus)
+                );
+            }
+            
+            draggedId = null; 
         }
 
         function getStatusName(status) {
             const names = {
                 'negotiation': 'Propuesta y Negociación',
                 'pending': 'Acuerdos en Cierre', 
-                'paid': 'Éxito y Cierre de Capital'
+                'paid': 'Éxito y Cierre de Capital',
+                'lost': 'Oportunidades Perdidas'
             };
             return names[status];
         }
 
-        function showModal(title, message, onConfirm) {
+        // --- MODAL DE CONFIRMACIÓN GENERAL (ACTUALIZADO PARA MOTIVO DE PÉRDIDA) ---
+        function showConfirmationModal(title, message, onConfirm, showLossReason = false) {
             document.getElementById('modal-title').textContent = title;
             document.getElementById('modal-message').innerHTML = message;
             const modal = document.getElementById('action-modal');
+            const lossReasonField = document.getElementById('loss-reason-field');
+            const lossReasonInput = document.getElementById('loss-reason');
+            
+            lossReasonInput.value = ''; // Limpiar campo
+
+            if (showLossReason) {
+                lossReasonField.classList.remove('hidden');
+                document.getElementById('modal-confirm').textContent = 'Confirmar Pérdida';
+                document.getElementById('modal-confirm').classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                document.getElementById('modal-confirm').classList.add('bg-red-600', 'hover:bg-red-700');
+            } else {
+                lossReasonField.classList.add('hidden');
+                document.getElementById('modal-confirm').textContent = 'Confirmar';
+                document.getElementById('modal-confirm').classList.remove('bg-red-600', 'hover:bg-red-700');
+                document.getElementById('modal-confirm').classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+            }
+
             modal.classList.remove('hidden');
             modal.classList.add('flex');
 
             document.getElementById('modal-confirm').onclick = () => {
                 modal.classList.add('hidden');
-                onConfirm();
+                if (onConfirm) {
+                    if (showLossReason) {
+                        onConfirm(lossReasonInput.value.trim());
+                    } else {
+                        onConfirm(); 
+                    }
+                }
             };
 
             document.getElementById('modal-cancel').onclick = () => {
@@ -435,12 +976,14 @@
             };
         }
 
-        // Hacer funciones globales
+        // Funciones globales para HTML
         window.handleDragOver = handleDragOver;
         window.handleDragLeave = handleDragLeave;
         window.handleDrop = handleDrop;
+        window.sortColumn = sortColumn;
+        window.applyFilter = applyFilter; 
 
-        // Inicializar
+        // Inicializar la aplicación al cargar la página
         window.addEventListener('DOMContentLoaded', initFirebase);
     </script>
 </body>
