@@ -274,7 +274,7 @@
                 'negotiation': { border: 'border-blue-500', icon: 'clock', color: 'text-blue-500', text: 'EN NEGOCIACIÓN' }
             };
 
-            // CORRECCIÓN APLICADA: Si sponsorship.status es inválido, usa 'negotiation' como valor por defecto.
+            // CORRECCIÓN 1: Evita el TypeError si el estado no está definido, usando 'negotiation' como respaldo.
             const config = statusConfig[sponsorship.status] || statusConfig['negotiation']; 
             const formattedAmount = `$${(sponsorship.amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 
@@ -291,7 +291,9 @@
             `;
             card.classList.add(config.border);
             
-            lucide.createIcons({ icons: [config.icon] });
+            // CORRECCIÓN 2: Eliminamos la llamada problemática. La creacion de iconos se hace al final de renderSponsorships.
+            // lucide.createIcons({ icons: [config.icon] }); 
+            
             card.addEventListener('dragstart', handleDragStart);
             
             return card;
@@ -305,13 +307,20 @@
 
             let totalAmount = 0;
             const counts = { negotiation: 0, pending: 0, paid: 0 };
+            
+            // Definir un estado seguro si el que viene de Firebase es inválido
+            const validStatuses = ['negotiation', 'pending', 'paid'];
 
             sponsorships.forEach(sponsorship => {
                 totalAmount += sponsorship.amount || 0;
-                counts[sponsorship.status]++;
+                
+                // CORRECCIÓN 3: Asegura que el estado para contar y renderizar es válido
+                const statusKey = validStatuses.includes(sponsorship.status) ? sponsorship.status : 'negotiation';
+                
+                counts[statusKey]++;
                 
                 const card = createCardElement(sponsorship);
-                document.getElementById(`${sponsorship.status}-list`).appendChild(card);
+                document.getElementById(`${statusKey}-list`).appendChild(card);
             });
 
             // Actualizar UI
@@ -321,6 +330,9 @@
             Object.keys(counts).forEach(status => {
                 document.getElementById(`${status}-count`).textContent = counts[status];
             });
+            
+            // LLAMADA GLOBAL (CORRECCIÓN 2): Crea todos los iconos de una vez
+            lucide.createIcons(); 
         }
 
         function setupFormListeners() {
