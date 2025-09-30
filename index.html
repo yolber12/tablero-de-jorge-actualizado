@@ -31,6 +31,15 @@
             transition: all 0.3s ease-in-out;
         }
         
+        /* Estilos de la Columna PERDIDO */
+        #lost {
+            background-color: #1f2937; /* Gris oscuro para archivo */
+            color: #f9fafb; /* Texto blanco */
+        }
+        #lost .kanban-title, #lost .kanban-count {
+            color: #f9fafb !important;
+        }
+
         /* Estilos de la Tarjeta */
         .card { 
             cursor: grab; 
@@ -50,18 +59,6 @@
             transform: scale(0.98); /* Ligera compresión al arrastrar */
         }
         
-        .drag-over { 
-            background-color: #e0f2fe; /* light blue */
-            border-color: #3b82f6 !important; 
-        }
-        .fade-in { 
-            animation: fadeIn 0.3s ease-out; 
-        }
-        @keyframes fadeIn { 
-            from { opacity: 0; transform: translateY(10px); } 
-            to { opacity: 1; transform: translateY(0); } 
-        }
-        
         /* Clases de Riesgo */
         .risk-orange { border-color: #f97316 !important; background-color: #fff7ed !important; }
         .risk-red { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
@@ -74,8 +71,33 @@
         }
         @media (min-width: 641px) and (max-width: 1024px) {
             .summary-grid {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(4, 1fr);
             }
+        }
+        @media (min-width: 1025px) {
+             .summary-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        /* Estilos del Gráfico de Embudo */
+        .funnel-bar {
+            height: 25px;
+            display: flex;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .funnel-segment {
+            transition: width 0.5s ease-out;
+            text-align: center;
+            line-height: 25px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
     </style>
 </head>
@@ -95,7 +117,7 @@
         </div>
         
         <!-- Tarjetas de Resumen de Capital -->
-        <div class="mt-6 summary-grid grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div class="mt-6 summary-grid grid gap-4">
             
             <!-- Capital en Negociación (Filtrado) -->
             <div class="p-5 bg-blue-50 rounded-xl shadow-lg border-b-4 border-blue-500 transition-all duration-300 hover:shadow-xl">
@@ -124,12 +146,22 @@
                 </div>
             </div>
             
-            <!-- Capital Proyectado TOTAL (Filtrado) -->
-            <div class="p-5 bg-indigo-600 rounded-xl shadow-xl border-b-4 border-indigo-400 transition-all duration-300 hover:shadow-2xl">
-                <p class="text-sm font-semibold text-indigo-200 uppercase mb-1">Capital Proyectado Total (Filtro)</p>
-                <div class="flex items-center justify-between">
-                    <span id="total-amount" class="text-2xl font-extrabold text-white">$0.00</span>
-                    <i data-lucide="trending-up" class="w-6 h-6 text-indigo-200"></i>
+            <!-- Gráfico de Embudo y Total Proyectado -->
+            <div class="lg:col-span-2 p-5 bg-indigo-50 rounded-xl shadow-xl border-t-4 border-indigo-600">
+                <p class="text-sm font-semibold text-indigo-700 uppercase mb-1">Capital Proyectado Total (Filtro)</p>
+                <div class="flex items-center justify-between mb-3">
+                    <span id="total-amount" class="text-2xl font-extrabold text-indigo-800">$0.00</span>
+                    <i data-lucide="trending-up" class="w-6 h-6 text-indigo-500"></i>
+                </div>
+                <!-- FUNNEL BAR -->
+                <div class="funnel-bar">
+                    <div id="funnel-negotiation" class="funnel-segment bg-blue-500" style="width: 0%"></div>
+                    <div id="funnel-pending" class="funnel-segment bg-yellow-500" style="width: 0%"></div>
+                    <div id="funnel-paid" class="funnel-segment bg-green-500" style="width: 0%"></div>
+                </div>
+                <div class="mt-2 text-xs text-gray-500 flex justify-between">
+                    <span>Negociación</span>
+                    <span>Pagado</span>
                 </div>
             </div>
 
@@ -265,17 +297,17 @@
 
         <!-- Columna PERDIDO -->
         <div id="lost" class="kanban-column p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'lost')" ondragleave="handleDragLeave(event)">
-            <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center justify-between">
+            <h2 class="text-xl font-bold mb-4 kanban-title border-b pb-2 flex items-center justify-between">
                 <div class="flex items-center">
-                    <i data-lucide="x-circle" class="w-5 h-5 mr-2 text-red-500"></i>
+                    <i data-lucide="x-circle" class="w-5 h-5 mr-2 text-red-400"></i>
                     Oportunidades Perdidas
                 </div>
-                <span class="ml-2 text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold" id="lost-count">0</span>
+                <span class="ml-2 text-sm bg-gray-700 text-red-300 px-3 py-1 rounded-full font-semibold kanban-count" id="lost-count">0</span>
             </h2>
             <!-- Selector de Ordenamiento -->
-            <div class="mb-4 flex items-center">
-                <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-500"></i>
-                <select id="sort-lost" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition-colors" onchange="sortColumn('lost', this.value)">
+            <div class="mb-4 flex items-center text-gray-300">
+                <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-400"></i>
+                <select id="sort-lost" class="p-2 border border-gray-600 rounded-lg text-sm w-full bg-gray-700 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-gray-100" onchange="sortColumn('lost', this.value)">
                     <option value="default">Ordenar por...</option>
                     <option value="amount_desc">Monto Mayor</option>
                     <option value="amount_asc">Monto Menor</option>
@@ -379,8 +411,16 @@
 
         let allSponsorships = []; 
         let isOnline = false;
+        // La lógica de ordenamiento se mantiene
         let columnSorts = { negotiation: 'default', pending: 'default', paid: 'default', lost: 'default' }; 
         let draggedId = null; 
+        
+        // --- UMBRALES DE VALOR ---
+        const DIAMOND_THRESHOLD = 1999; // > $1999 (>= $2000)
+        const GOLD_THRESHOLD = 999;     // > $999 (>= $1000)
+        const BRONZE_THRESHOLD = 549;   // > $549 (>= $550) 
+        // --- FIN UMBRALES DE VALOR ---
+
 
         // --- UTILIDADES DE FECHA ---
         function safeToDate(timestamp) {
@@ -455,6 +495,7 @@
                         // Convertir timestamps de Firestore a objeto Date de JavaScript
                         createdAt: safeToDate(data.createdAt), 
                         lastActivityDate: safeToDate(data.lastActivityDate) || safeToDate(data.createdAt), // Usar createdAt si lastActivityDate no existe
+                        // Eliminamos isStarred de la lógica y la data
                     };
                     allSponsorships.push(sponsorship);
                     if (sponsorship.createdAt instanceof Date) {
@@ -500,13 +541,13 @@
             const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
             
             const exampleData = [
-                { id: '1', name: 'Moss (Riesgo Naranja)', amount: 2000, status: 'negotiation', notes: 'Sin respuesta en 8 días.', createdAt: twoDaysAgo, lastActivityDate: eightDaysAgo },
-                { id: '2', name: 'Puma (Negociación Activa)', amount: 900, status: 'negotiation', notes: 'Revisión final de contrato.', createdAt: twoDaysAgo, lastActivityDate: now },
+                { id: '1', name: 'Moss (Diamante)', amount: 2500, status: 'negotiation', notes: 'Sin respuesta en 8 días.', createdAt: twoDaysAgo, lastActivityDate: eightDaysAgo },
+                { id: '2', name: 'Puma (Bronce)', amount: 600, status: 'negotiation', notes: 'Revisión final de contrato.', createdAt: twoDaysAgo, lastActivityDate: now },
                 { id: '3', name: 'Gp (Pagado)', amount: 1000, status: 'paid', notes: 'Pagado en cash. Cerrado.', createdAt: twoDaysAgo, lastActivityDate: twoDaysAgo },
                 { id: '4', name: 'Arcoweld (Perdido)', amount: 700, status: 'lost', notes: 'El cliente se fue con la competencia.', lossReason: 'Precio de la competencia' , createdAt: twoDaysAgo, lastActivityDate: twoDaysAgo },
-                { id: '5', name: 'Mi casino (Riesgo Rojo)', amount: 450, status: 'negotiation', notes: 'Sin respuesta en 11 días.', createdAt: twoDaysAgo, lastActivityDate: elevenDaysAgo },
-                { id: '6', name: 'Solverapp (Pendiente)', amount: 550, status: 'pending', notes: 'Pendiente de transferencia.', createdAt: twoDaysAgo, lastActivityDate: eightDaysAgo },
-                { id: '7', name: 'Zeta Corp', amount: 1200, status: 'pending', notes: 'Firma de acuerdo pendiente', createdAt: twoDaysAgo, lastActivityDate: now }
+                { id: '5', name: 'Mi casino (Diamante)', amount: 4500, status: 'negotiation', notes: 'Sin respuesta en 11 días.', createdAt: twoDaysAgo, lastActivityDate: elevenDaysAgo },
+                { id: '6', name: 'Solverapp (Oro)', amount: 1550, status: 'pending', notes: 'Pendiente de transferencia.', createdAt: twoDaysAgo, lastActivityDate: eightDaysAgo },
+                { id: '7', name: 'Zeta Corp (Pendiente)', amount: 1200, status: 'pending', notes: 'Firma de acuerdo pendiente', createdAt: twoDaysAgo, lastActivityDate: now }
             ];
             
             allSponsorships = exampleData;
@@ -557,14 +598,14 @@
                 showConfirmationModal('Error', `No se pudo actualizar el patrocinio. Error: ${error.message}`, () => {});
             }
         }
-
+        
         async function updateSponsorshipStatus(id, newStatus, lossReason = null) {
             const updateData = { status: newStatus };
             let updateActivity = true; 
 
             if (newStatus === 'lost') {
                 updateData.lossReason = lossReason;
-                // No actualizamos lastActivityDate para 'lost' a menos que se editen notas o monto
+                // No actualizamos lastActivityDate al pasar a 'lost'
                 updateActivity = false; 
             } else {
                 updateData.lossReason = firebase.firestore.FieldValue.delete();
@@ -622,7 +663,7 @@
                     notes: notes,
                     status: 'negotiation',
                     createdAt: creationDate,
-                    lastActivityDate: creationDate // Inicializar la actividad con la fecha de creación
+                    lastActivityDate: creationDate, // Inicializar la actividad con la fecha de creación
                 });
                 
                 // Resetear el formulario y UI
@@ -641,7 +682,7 @@
             }
         }
 
-        // --- RENDERIZADO Y LÓGICA DE COLUMNAS ---
+        // --- LÓGICA DE ORDENAMIENTO Y RENDERIZADO ---
         function sortColumn(status, sortBy) {
             columnSorts[status] = sortBy;
             renderSponsorships();
@@ -668,26 +709,27 @@
             }
 
             const sortBy = columnSorts[status];
-
-            switch (sortBy) {
-                case 'amount_desc':
-                    columnSponsorships.sort((a, b) => (b.amount || 0) - (a.amount || 0));
-                    break;
-                case 'amount_asc':
-                    columnSponsorships.sort((a, b) => (a.amount || 0) - (b.amount || 0));
-                    break;
-                case 'name_asc':
-                    columnSponsorships.sort((a, b) => a.name.localeCompare(b.name));
-                    break;
-                case 'name_desc':
-                    columnSponsorships.sort((a, b) => b.name.localeCompare(a.name));
-                    break;
-                case 'default':
-                default:
-                    // Ordenar por última actividad más reciente por defecto
-                    columnSponsorships.sort((a, b) => (b.lastActivityDate?.getTime() || 0) - (a.lastActivityDate?.getTime() || 0));
-                    break;
-            }
+            
+            // Función de comparación para ordenar
+            const compare = (a, b) => {
+                
+                switch (sortBy) {
+                    case 'amount_desc':
+                        return (b.amount || 0) - (a.amount || 0);
+                    case 'amount_asc':
+                        return (a.amount || 0) - (b.amount || 0);
+                    case 'name_asc':
+                        return a.name.localeCompare(b.name);
+                    case 'name_desc':
+                        return b.name.localeCompare(a.name);
+                    case 'default':
+                    default:
+                        // Por defecto, ordenar por última actividad más reciente
+                        return (b.lastActivityDate?.getTime() || 0) - (a.lastActivityDate?.getTime() || 0);
+                }
+            };
+            
+            columnSponsorships.sort(compare);
             return columnSponsorships;
         }
 
@@ -699,7 +741,6 @@
             return `${day}/${month}/${year}`;
         }
         
-        // --- FUNCIÓN ACTUALIZADA: CALCULA RIESGO EN BASE A lastActivityDate ---
         function getRiskClasses(sponsorship) {
             if (sponsorship.status === 'lost' || sponsorship.status === 'paid') {
                 return '';
@@ -726,9 +767,28 @@
             return ''; 
         }
 
+        function getValueIcon(amount) {
+            if (amount > DIAMOND_THRESHOLD) {
+                // Diamante Azul (Alto Valor)
+                return `<i data-lucide="gem" class="w-4 h-4 text-blue-500 ml-2 fill-blue-500"></i>`;
+            } else if (amount > GOLD_THRESHOLD) {
+                // Piedra de Oro Amarilla
+                return `<i data-lucide="star" class="w-4 h-4 text-yellow-500 ml-2 fill-yellow-500"></i>`;
+            } else if (amount > BRONZE_THRESHOLD) {
+                // Piedra de Bronce Marrón
+                return `<i data-lucide="shield-half" class="w-4 h-4 text-amber-800 ml-2 fill-amber-800"></i>`;
+            }
+            return '';
+        }
+
         function createCardElement(sponsorship) {
             const card = document.createElement('div');
-            card.className = 'card p-4 fade-in';
+            
+            // Clase de columna perdida para opacidad
+            const lostOpacityClass = sponsorship.status === 'lost' ? 'opacity-75 hover:opacity-100' : '';
+            // Se eliminan las clases de 'starred'
+
+            card.className = `card p-4 fade-in ${lostOpacityClass} shadow-md`;
             card.setAttribute('data-id', sponsorship.id);
             card.setAttribute('data-status', sponsorship.status);
 
@@ -736,12 +796,12 @@
                 'pending': { border: 'border-yellow-500', icon: 'dollar-sign', color: 'text-yellow-600', text: 'PENDIENTE' },
                 'paid': { border: 'border-green-500', icon: 'check-circle', color: 'text-green-600', text: 'CAPITAL RECIBIDO' },
                 'negotiation': { border: 'border-blue-500', icon: 'clock', color: 'text-blue-600', text: 'EN NEGOCIACIÓN' },
-                'lost': { border: 'border-gray-400', icon: 'slash', color: 'text-gray-500', text: 'PERDIDO' }
+                'lost': { border: 'border-gray-400', icon: 'slash', color: 'text-gray-400', text: 'PERDIDO' }
             };
 
             const config = statusConfig[sponsorship.status] || statusConfig['negotiation']; 
-            const formattedAmount = `$${(sponsorship.amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-            // Usamos la fecha de la última actividad para la tarjeta
+            const amount = sponsorship.amount || 0;
+            const formattedAmount = `$${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
             const lastActivityDate = formatDate(sponsorship.lastActivityDate);
             
             let riskClasses = getRiskClasses(sponsorship);
@@ -751,33 +811,37 @@
             
             let extraInfo = '';
             if (sponsorship.status === 'lost' && sponsorship.lossReason) {
-                extraInfo = `<p class="text-xs text-red-600 font-semibold mt-2 line-clamp-2">Motivo: ${sponsorship.lossReason}</p>`;
+                extraInfo = `<p class="text-xs ${sponsorship.status === 'lost' ? 'text-red-400' : 'text-red-600'} font-semibold mt-2 line-clamp-2">Motivo: ${sponsorship.lossReason}</p>`;
             }
-
-            // Aplicar el color de borde de la columna, que puede ser sobrescrito por las clases de riesgo
-            card.style.borderColor = config.border.split('-').pop();
-
+            
+            // Icono de Valor Dinámico
+            const valueIcon = getValueIcon(amount);
+            
             card.innerHTML = `
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-widest">${config.text}</span>
+                <div class="flex items-start justify-between mb-2">
+                    <div class="flex items-center space-x-1">
+                        <span class="text-xs font-semibold ${sponsorship.status === 'lost' ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-widest">${config.text}</span>
+                        ${valueIcon}
                     </div>
-                    <button class="edit-card-btn text-gray-400 hover:text-indigo-600 transition p-1 rounded-full hover:bg-gray-100" data-id="${sponsorship.id}" title="Click para editar.">
-                        <i data-lucide="pencil" class="w-4 h-4"></i>
-                    </button>
+                    <div class="flex items-center space-x-2">
+                        <!-- Botón de Editar -->
+                        <button class="edit-card-btn text-gray-400 hover:text-indigo-600 transition p-1 rounded-full hover:bg-gray-100 ${sponsorship.status === 'lost' ? 'text-gray-400 hover:bg-gray-700' : ''}" data-id="${sponsorship.id}" title="Click para editar.">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
-                <h3 class="text-lg font-bold text-gray-800 mb-1 line-clamp-1">${sponsorship.name}</h3>
+                <h3 class="text-lg font-bold ${sponsorship.status === 'lost' ? 'text-gray-100' : 'text-gray-800'} mb-1 line-clamp-1">${sponsorship.name}</h3>
                 <p class="text-2xl font-extrabold ${config.color} mb-2 flex items-center">
                     <i data-lucide="${config.icon}" class="w-5 h-5 mr-2"></i>
                     ${formattedAmount}
                 </p>
-                ${sponsorship.notes ? `<p class="text-sm text-gray-500 italic mt-2 line-clamp-2">${sponsorship.notes}</p>` : ''}
-                <p class="text-xs text-gray-500 mt-2 font-semibold">Última Actividad: <span class="text-gray-700">${lastActivityDate}</span></p>
+                ${sponsorship.notes ? `<p class="text-sm ${sponsorship.status === 'lost' ? 'text-gray-300' : 'text-gray-500'} italic mt-2 line-clamp-2">${sponsorship.notes}</p>` : ''}
+                <p class="text-xs ${sponsorship.status === 'lost' ? 'text-gray-400' : 'text-gray-500'} mt-2 font-semibold">Última Actividad: <span class="${sponsorship.status === 'lost' ? 'text-gray-200' : 'text-gray-700'}">${lastActivityDate}</span></p>
                 ${extraInfo}
             `;
             
-            // Re-aplicar el color de borde para asegurar que la clase de riesgo (si existe) lo sobrescriba
-            card.classList.add(config.border);
+            // Aplicar el color de borde de la columna, que puede ser sobrescrito por las clases de riesgo
+            card.style.borderColor = config.border.split('-').pop();
 
             const editButton = card.querySelector('.edit-card-btn');
             editButton.addEventListener('click', (e) => {
@@ -791,7 +855,6 @@
             return card;
         }
 
-        // Esta función NO debe usar filtros de fecha.
         function calculateHistoricalTotalPaid() {
             return allSponsorships.reduce((sum, s) => {
                 if (s.status === 'paid') {
@@ -799,6 +862,38 @@
                 }
                 return sum;
             }, 0);
+        }
+        
+        // --- FUNCIÓN DE CÁLCULO Y RENDERIZADO DEL FUNNEL ---
+        function updateFunnel(totalNegotiation, totalPending, totalPaid) {
+            const totalActive = totalNegotiation + totalPending + totalPaid;
+            
+            const negotiationPercent = totalActive > 0 ? (totalNegotiation / totalActive) * 100 : 0;
+            const pendingPercent = totalActive > 0 ? (totalPending / totalActive) * 100 : 0;
+            const paidPercent = totalActive > 0 ? (totalPaid / totalActive) * 100 : 0;
+
+            const negotiationBar = document.getElementById('funnel-negotiation');
+            const pendingBar = document.getElementById('funnel-pending');
+            const paidBar = document.getElementById('funnel-paid');
+
+            negotiationBar.style.width = `${negotiationPercent.toFixed(2)}%`;
+            negotiationBar.textContent = negotiationPercent > 5 ? `${negotiationPercent.toFixed(0)}%` : ''; // Mostrar % solo si es > 5%
+            
+            pendingBar.style.width = `${pendingPercent.toFixed(2)}%`;
+            pendingBar.textContent = pendingPercent > 5 ? `${pendingPercent.toFixed(0)}%` : '';
+
+            paidBar.style.width = `${paidPercent.toFixed(2)}%`;
+            paidBar.textContent = paidPercent > 5 ? `${paidPercent.toFixed(0)}%` : '';
+            
+            // Ajustar el texto de la barra si es muy pequeño para evitar overflow
+            if (negotiationPercent < 15) negotiationBar.style.color = '#000'; else negotiationBar.style.color = '#fff';
+            if (pendingPercent < 15) pendingBar.style.color = '#000'; else pendingBar.style.color = '#fff';
+            if (paidPercent < 15) paidBar.style.color = '#000'; else paidBar.style.color = '#fff';
+            
+            // Asegurar que si el porcentaje es muy bajo, no se muestre texto para no apilar
+            if (negotiationPercent < 3) negotiationBar.textContent = '';
+            if (pendingPercent < 3) pendingBar.textContent = '';
+            if (paidPercent < 3) paidBar.textContent = '';
         }
 
         function renderSponsorships() {
@@ -851,6 +946,9 @@
             document.getElementById('capital-pending').textContent = formatCurrency(totalPending);
             document.getElementById('capital-paid').textContent = formatCurrency(totalPaid);
             document.getElementById('total-amount').textContent = formatCurrency(totalProjected);
+            
+            // Actualizar el Gráfico de Embudo
+            updateFunnel(totalNegotiation, totalPending, totalPaid);
 
             // Capital Total Histórico Recibido (SIN FILTRO - utiliza la función que ignora la fecha)
             const historicalPaid = calculateHistoricalTotalPaid();
@@ -927,6 +1025,7 @@
 
                 if (name && amount) {
                     // Si se edita la tarjeta, marcamos que se debe actualizar la fecha de actividad.
+                    // Si solo se cambia lossReason en un lost, la función updateSponsorship lo manejará.
                     await updateSponsorship(id, updateData, true); 
                     hideEditModal();
                 } else {
