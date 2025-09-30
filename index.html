@@ -330,7 +330,8 @@
                 
                 populateYearFilter();
 
-                await auth.signInAnonymously();
+                // Usamos signInAnonymously como fallback seguro para pruebas
+                await auth.signInAnonymously(); 
 
                 setupRealtimeListener();
                 setupFormListeners();
@@ -440,7 +441,7 @@
                 { id: '3', name: 'Gp (Pagado)', amount: 1000, status: 'paid', notes: 'Pagado en cash. Cerrado.', createdAt: now },
                 { id: '4', name: 'Arcoweld (Perdido)', amount: 700, status: 'lost', notes: 'El cliente se fue con la competencia.', lossReason: 'Precio de la competencia' , createdAt: eightDaysAgo },
                 { id: '5', name: 'Mi casino (Riesgo Rojo)', amount: 450, status: 'negotiation', notes: 'Sin respuesta en 11 días.', createdAt: new Date(now.getTime() - 11 * 24 * 60 * 60 * 1000) },
-                { id: '6', name: 'Solverapp (Pagado)', amount: 550, status: 'pending', notes: 'Pendiente de transferencia.', createdAt: eightDaysAgo },
+                { id: '6', name: 'Solverapp (Pendiente)', amount: 550, status: 'pending', notes: 'Pendiente de transferencia.', createdAt: eightDaysAgo },
                 { id: '7', name: 'Zeta Corp', amount: 1200, status: 'pending', notes: 'Firma de acuerdo pendiente', createdAt: now }
             ];
             
@@ -451,20 +452,23 @@
         // --- LÓGICA DE FILTRADO ---
 
         function applyFilter() {
-            const selectedYear = document.getElementById('filter-year').value;
-            const selectedMonth = document.getElementById('filter-month').value;
-
-            // El filtrado por fecha SOLO aplica a las columnas de CAPITAL (negotiation, pending, paid)
-            // Las oportunidades perdidas (lost) siempre se muestran, sin importar el filtro de fecha, 
-            // ya que son un histórico de fracasos que se analiza aparte.
-
-            renderSponsorships(); // El renderizado se encargará de usar el filtro solo donde es relevante
+            // Aquí solo se llama a renderSponsorships, el filtrado se hace dentro de getSortedSponsorships
+            renderSponsorships(); 
         }
 
 
         // --- CRUD EN FIREBASE ---
         async function updateSponsorship(id, data) {
+            // **FIX PARA ERROR: Validar el ID antes de usar doc()**
+            if (!id || typeof id !== 'string' || id.trim() === '') {
+                console.error("🚫 Error: ID de patrocinio inválido o vacío. No se puede actualizar.");
+                showConfirmationModal('Error de Datos', 'ID de patrocinio no encontrado. No se puede realizar la actualización.', () => {});
+                return;
+            }
+
+            // **CORRECCIÓN 1: La verificación de la conexión está aquí para el CRUD**
             if (!isOnline) {
+                // Usamos el modal de confirmación como modal de alerta/error
                 showConfirmationModal('Sin Conexión', 'No hay conexión a Internet. Los cambios no se guardarán.', () => {});
                 return;
             }
@@ -477,7 +481,7 @@
                 console.log(`✅ Actualizado: ${id}`);
             } catch (error) {
                 console.error("Error actualizando:", error);
-                showConfirmationModal('Error', 'No se pudo actualizar. Revisa la conexión.', () => {});
+                showConfirmationModal('Error', `No se pudo actualizar el patrocinio. Error: ${error.message}`, () => {});
             }
         }
 
@@ -489,10 +493,18 @@
                 // Asegurar que si regresa a una columna de capital, se borre el motivo de pérdida
                 updateData.lossReason = firebase.firestore.FieldValue.delete();
             }
+            // Llama a la función que tiene la verificación de conexión
             await updateSponsorship(id, updateData);
         }
         
         async function deleteSponsorship(id) {
+            // **FIX PARA ERROR: Validar el ID antes de usar doc()**
+            if (!id || typeof id !== 'string' || id.trim() === '') {
+                console.error("🚫 Error: ID de patrocinio inválido o vacío. No se puede eliminar.");
+                showConfirmationModal('Error de Datos', 'ID de patrocinio no encontrado. No se puede realizar la eliminación.', () => {});
+                return;
+            }
+            
             if (!isOnline) {
                 showConfirmationModal('Sin Conexión', 'No hay conexión a Internet. No se puede eliminar.', () => {});
                 return;
@@ -678,7 +690,7 @@
             return card;
         }
 
-        // Nuevo: Función para calcular el total pagado de todo el historial (sin filtros)
+        // Función para calcular el total pagado de todo el historial (sin filtros)
         function calculateHistoricalTotalPaid() {
             return allSponsorships.reduce((sum, s) => {
                 if (s.status === 'paid') {
@@ -805,21 +817,21 @@
                 const name = document.getElementById('edit-sponsorship-name').value.trim();
                 const amount = document.getElementById('edit-sponsorship-amount').value;
                 const notes = document.getElementById('edit-sponsorship-notes').value.trim();
-                const lossReason = document.getElementById('edit-loss-reason').value.trim(); // Obtener el motivo de pérdida
                 
-                if (name && amount) {
-                    // Solo si está en status 'lost' o si tiene un motivo de pérdida ingresado
-                    const updateData = {
-                        name: name,
-                        amount: parseFloat(amount),
-                        notes: notes
-                    };
-                    
-                    const sponsorship = allSponsorships.find(s => s.id === id);
-                    if (sponsorship.status === 'lost') {
-                         updateData.lossReason = lossReason;
-                    }
+                // Obtener el motivo de pérdida solo si es relevante (la tarjeta está en 'lost')
+                const sponsorship = allSponsorships.find(s => s.id === id);
+                let updateData = {
+                    name: name,
+                    amount: parseFloat(amount),
+                    notes: notes
+                };
+                
+                if (sponsorship && sponsorship.status === 'lost') {
+                    updateData.lossReason = document.getElementById('edit-loss-reason').value.trim();
+                }
 
+
+                if (name && amount) {
                     await updateSponsorship(id, updateData);
                     hideEditModal();
                 } else {
@@ -898,30 +910,36 @@
             const cardElement = document.querySelector(`[data-id="${draggedId}"]`);
             if (cardElement) cardElement.classList.remove('opacity-50');
 
-            if (!draggedId) return;
+            // Capturamos el ID antes de limpiarlo globalmente para asegurar que el callback lo tenga.
+            const idToUpdate = draggedId;
+            if (!idToUpdate) return;
 
             const currentStatus = cardElement.getAttribute('data-status');
             if (currentStatus === newStatus) return;
 
-            const sponsorship = allSponsorships.find(s => s.id === draggedId);
+            const sponsorship = allSponsorships.find(s => s.id === idToUpdate);
             if (!sponsorship) return;
 
             // Lógica especial para la columna 'lost'
             if (newStatus === 'lost') {
+                // **CORRECCIÓN 2: El callback recibe el motivo de pérdida**
                 showConfirmationModal(
                     'Confirmar Oportunidad Perdida',
                     `Estás a punto de mover <strong>${sponsorship.name}</strong> a la columna PERDIDO. Por favor, especifica el motivo para el análisis futuro:`,
-                    (lossReason) => updateSponsorshipStatus(draggedId, newStatus, lossReason), // Pasamos la función de confirmación con el motivo
+                    // Este callback recibe el 'lossReason' automáticamente del modal
+                    (lossReason) => updateSponsorshipStatus(idToUpdate, newStatus, lossReason), 
                     true // Indica que debe mostrar el campo de motivo de pérdida
                 );
             } else {
                  showConfirmationModal(
                     'Confirmar Cambio',
                     `¿Mover <strong>${sponsorship.name}</strong> a <strong>${getStatusName(newStatus)}</strong>?`,
-                    () => updateSponsorshipStatus(draggedId, newStatus)
+                    // El callback para otros estados no necesita el lossReason, solo llama a la función de estado
+                    () => updateSponsorshipStatus(idToUpdate, newStatus) 
                 );
             }
             
+            // Limpiamos el ID global después de programar la acción.
             draggedId = null; 
         }
 
@@ -935,34 +953,36 @@
             return names[status];
         }
 
-        // --- MODAL DE CONFIRMACIÓN GENERAL (ACTUALIZADO PARA MOTIVO DE PÉRDIDA) ---
+        // --- MODAL DE CONFIRMACIÓN GENERAL (CORREGIDO Y AJUSTADO) ---
         function showConfirmationModal(title, message, onConfirm, showLossReason = false) {
             document.getElementById('modal-title').textContent = title;
             document.getElementById('modal-message').innerHTML = message;
             const modal = document.getElementById('action-modal');
             const lossReasonField = document.getElementById('loss-reason-field');
             const lossReasonInput = document.getElementById('loss-reason');
+            const confirmBtn = document.getElementById('modal-confirm');
             
             lossReasonInput.value = ''; // Limpiar campo
 
             if (showLossReason) {
                 lossReasonField.classList.remove('hidden');
-                document.getElementById('modal-confirm').textContent = 'Confirmar Pérdida';
-                document.getElementById('modal-confirm').classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
-                document.getElementById('modal-confirm').classList.add('bg-red-600', 'hover:bg-red-700');
+                confirmBtn.textContent = 'Confirmar Pérdida';
+                confirmBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                confirmBtn.classList.add('bg-red-600', 'hover:bg-red-700');
             } else {
                 lossReasonField.classList.add('hidden');
-                document.getElementById('modal-confirm').textContent = 'Confirmar';
-                document.getElementById('modal-confirm').classList.remove('bg-red-600', 'hover:bg-red-700');
-                document.getElementById('modal-confirm').classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                confirmBtn.textContent = 'Confirmar';
+                confirmBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                confirmBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
             }
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
 
-            document.getElementById('modal-confirm').onclick = () => {
+            confirmBtn.onclick = () => {
                 modal.classList.add('hidden');
                 if (onConfirm) {
+                    // **CORRECCIÓN 2: Pasar el valor del motivo de pérdida al callback si aplica**
                     if (showLossReason) {
                         onConfirm(lossReasonInput.value.trim());
                     } else {
