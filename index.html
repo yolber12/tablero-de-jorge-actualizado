@@ -8,40 +8,97 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; min-height: 100vh; }
-        /* Aumentar ancho máximo de columna para dar espacio a 4 columnas en pantallas grandes */
-        .kanban-column { min-width: 280px; max-width: 300px; background-color: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); }
-        .card { cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
-        .card:hover { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
-        .card:active { transform: scale(1.02); }
-        .drag-over { background-color: #e0e7ff; border-color: #3b82f6; }
-        .fade-in { animation: fadeIn 0.3s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8f9fa; /* Fondo más claro */
+            min-height: 100vh; 
+        }
+        /* Estilos del Kanban */
+        .kanban-container { 
+            display: flex; 
+            overflow-x: auto; 
+            gap: 1.5rem; /* gap-6 */
+            padding-bottom: 1rem; /* Espacio para la barra de desplazamiento */
+        }
+        .kanban-column { 
+            min-width: 300px; 
+            max-width: 300px; 
+            flex-shrink: 0;
+            background-color: #ffffff; 
+            border: 1px solid #e9ecef; /* Borde más sutil */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); 
+            border-radius: 1rem; /* rounded-xl */
+            transition: all 0.3s ease-in-out;
+        }
+        
+        /* Estilos de la Tarjeta */
+        .card { 
+            cursor: grab; 
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease; 
+            border-radius: 0.75rem; /* rounded-lg */
+            margin-bottom: 1rem; 
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            border-left-width: 5px; /* Usar border-left para el color */
+            border-style: solid;
+        }
+        .card:hover { 
+            box-shadow: 0 8px 10px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
+            transform: translateY(-2px); /* Ligera elevación al pasar el mouse */
+        }
+        .card:active { 
+            cursor: grabbing; 
+            transform: scale(0.98); /* Ligera compresión al arrastrar */
+        }
+        
+        .drag-over { 
+            background-color: #e0f2fe; /* light blue */
+            border-color: #3b82f6 !important; 
+        }
+        .fade-in { 
+            animation: fadeIn 0.3s ease-out; 
+        }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        
         /* Clases de Riesgo */
         .risk-orange { border-color: #f97316 !important; background-color: #fff7ed !important; }
-        .risk-red { border-color: #ef4444 !important; background-color: #fee2e2 !important; }
+        .risk-red { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
+        
+        /* Responsive para la estructura de las tarjetas de resumen */
+        @media (max-width: 640px) {
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (min-width: 641px) and (max-width: 1024px) {
+            .summary-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
     <header class="mb-8 p-6 bg-white rounded-2xl shadow-2xl border-t-4 border-indigo-600">
-        <div class="flex items-start justify-between">
-            <div>
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+            <div class="mb-4 md:mb-0">
                 <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2 flex items-center">
                     <i data-lucide="car" class="w-7 h-7 mr-3 text-indigo-700"></i>
-                    Dashboard de Patrocinios - Jorge Dos Santos
+                    Dashboard de Patrocinios
                 </h1>
                 <p class="text-lg text-gray-600" id="sync-status">Conectando a la base de datos...</p>
             </div>
-            <span id="connection-status" class="text-sm bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-semibold ml-4 shadow-inner">
+            <span id="connection-status" class="text-sm bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-semibold ml-0 md:ml-4 shadow-inner flex-shrink-0">
                 Conectando...
             </span>
         </div>
         
-        <!-- Tarjetas de Resumen de Capital (Opción 3) -->
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Tarjetas de Resumen de Capital -->
+        <div class="mt-6 summary-grid grid grid-cols-1 lg:grid-cols-5 gap-4">
             
             <!-- Capital en Negociación (Filtrado) -->
-            <div class="p-5 bg-blue-100 rounded-xl shadow-md border-b-4 border-blue-500">
+            <div class="p-5 bg-blue-50 rounded-xl shadow-lg border-b-4 border-blue-500 transition-all duration-300 hover:shadow-xl">
                 <p class="text-sm font-semibold text-blue-700 uppercase mb-1">En Negociación (Filtro)</p>
                 <div class="flex items-center justify-between">
                     <span id="capital-negotiation" class="text-2xl font-extrabold text-blue-800">$0.00</span>
@@ -50,7 +107,7 @@
             </div>
 
             <!-- Capital Pendiente de Pago (Filtrado) -->
-            <div class="p-5 bg-yellow-100 rounded-xl shadow-md border-b-4 border-yellow-500">
+            <div class="p-5 bg-yellow-50 rounded-xl shadow-lg border-b-4 border-yellow-500 transition-all duration-300 hover:shadow-xl">
                 <p class="text-sm font-semibold text-yellow-700 uppercase mb-1">Pendiente de Pago (Filtro)</p>
                 <div class="flex items-center justify-between">
                     <span id="capital-pending" class="text-2xl font-extrabold text-yellow-800">$0.00</span>
@@ -59,7 +116,7 @@
             </div>
 
             <!-- Capital Recibido (Pagado) (Filtrado) -->
-            <div class="p-5 bg-green-100 rounded-xl shadow-md border-b-4 border-green-500">
+            <div class="p-5 bg-green-50 rounded-xl shadow-lg border-b-4 border-green-500 transition-all duration-300 hover:shadow-xl">
                 <p class="text-sm font-semibold text-green-700 uppercase mb-1">Capital Recibido (Filtro)</p>
                 <div class="flex items-center justify-between">
                     <span id="capital-paid" class="text-2xl font-extrabold text-green-800">$0.00</span>
@@ -67,21 +124,21 @@
                 </div>
             </div>
             
-            <!-- Capital Proyectado TOTAL (Negociación + Pendiente + Pagado) (Filtrado) -->
-            <div class="p-5 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl shadow-lg border-b-4 border-indigo-300">
+            <!-- Capital Proyectado TOTAL (Filtrado) -->
+            <div class="p-5 bg-indigo-600 rounded-xl shadow-xl border-b-4 border-indigo-400 transition-all duration-300 hover:shadow-2xl">
                 <p class="text-sm font-semibold text-indigo-200 uppercase mb-1">Capital Proyectado Total (Filtro)</p>
                 <div class="flex items-center justify-between">
                     <span id="total-amount" class="text-2xl font-extrabold text-white">$0.00</span>
-                    <i data-lucide="trending-up" class="w-6 h-6 text-white"></i>
+                    <i data-lucide="trending-up" class="w-6 h-6 text-indigo-200"></i>
                 </div>
             </div>
 
-            <!-- Capital Total Histórico Recibido (Pagado) (SIN FILTRO) -->
-            <div class="p-5 bg-purple-100 rounded-xl shadow-md border-b-4 border-purple-600">
-                <p class="text-sm font-semibold text-purple-700 uppercase mb-1">Total Generado Histórico (PAGADO)</p>
+            <!-- Capital Total Histórico Recibido (SIN FILTRO) -->
+            <div class="p-5 bg-gray-100 rounded-xl shadow-lg border-b-4 border-gray-600 transition-all duration-300 hover:shadow-xl">
+                <p class="text-sm font-semibold text-gray-700 uppercase mb-1">Total Generado Histórico (PAGADO)</p>
                 <div class="flex items-center justify-between">
-                    <span id="historical-total-paid" class="text-2xl font-extrabold text-purple-800">$0.00</span>
-                    <i data-lucide="wallet" class="w-6 h-6 text-purple-600"></i>
+                    <span id="historical-total-paid" class="text-2xl font-extrabold text-gray-800">$0.00</span>
+                    <i data-lucide="wallet" class="w-6 h-6 text-gray-600"></i>
                 </div>
             </div>
 
@@ -91,15 +148,15 @@
         <div class="mt-6 space-y-4 md:space-y-0 md:flex md:justify-between md:items-center">
             
             <!-- Filtros por Fecha -->
-            <div class="p-4 md:p-5 bg-gray-50 rounded-xl shadow-inner border border-gray-200 flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4 items-stretch md:items-center w-full md:w-auto">
-                <label class="font-bold text-gray-700 text-lg flex items-center">
+            <div class="p-4 bg-gray-50 rounded-xl shadow-inner border border-gray-200 flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4 items-stretch md:items-center w-full md:w-auto">
+                <label class="font-bold text-gray-700 text-base flex items-center">
                     <i data-lucide="calendar" class="w-5 h-5 mr-2 text-indigo-500"></i>
-                    Filtrar por Fecha:
+                    Filtrar por:
                 </label>
-                <select id="filter-year" class="p-2 border border-gray-300 rounded-lg text-base bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-auto" onchange="applyFilter()">
+                <select id="filter-year" class="p-2 border border-gray-300 rounded-lg text-sm bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-auto transition-colors" onchange="applyFilter()">
                     <option value="all">Todo el Historial</option>
                 </select>
-                <select id="filter-month" class="p-2 border border-gray-300 rounded-lg text-base bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-auto" onchange="applyFilter()">
+                <select id="filter-month" class="p-2 border border-gray-300 rounded-lg text-sm bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-auto transition-colors" onchange="applyFilter()">
                     <option value="all">Todos los Meses</option>
                     <option value="1">Enero</option>
                     <option value="2">Febrero</option>
@@ -119,19 +176,19 @@
         
     </header>
 
-    <main class="flex flex-row overflow-x-auto gap-6 justify-center">
+    <main class="kanban-container">
         <!-- Columna NEGOCIACIÓN -->
-        <div id="negotiation" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'negotiation')" ondragleave="handleDragLeave(event)">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center justify-between">
+        <div id="negotiation" class="kanban-column p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'negotiation')" ondragleave="handleDragLeave(event)">
+            <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center justify-between">
                 <div class="flex items-center">
                     <i data-lucide="clock" class="w-5 h-5 mr-2 text-blue-500"></i>
-                    Fase I: Propuesta y Negociación
+                    Fase I: Negociación
                 </div>
-                <span class="ml-2 text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full" id="negotiation-count">0</span>
+                <span class="ml-2 text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold" id="negotiation-count">0</span>
             </h2>
-            <button id="add-sponsorship-btn" class="mb-4 w-full flex items-center justify-center px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-150 shadow-md">
+            <button id="add-sponsorship-btn" class="mb-4 w-full flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md transform hover:scale-[1.01]">
                 <i data-lucide="plus-circle" class="w-5 h-5 mr-2"></i>
-                Añadir Nueva Oportunidad
+                Añadir Oportunidad
             </button>
             <div id="add-form-container" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg shadow-inner hidden">
                 <form id="add-sponsorship-form">
@@ -139,8 +196,8 @@
                     <input type="number" id="sponsorship-amount" placeholder="Monto (ej: 1500)" required class="w-full p-2 mb-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" min="0">
                     <textarea id="sponsorship-notes" placeholder="Notas clave" rows="2" class="w-full p-2 mb-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                     <div class="flex justify-between space-x-2">
-                        <button type="submit" class="flex-1 px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition">Guardar</button>
-                        <button type="button" id="cancel-add-btn" class="px-3 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition flex items-center">
+                        <button type="submit" class="flex-1 px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition shadow-sm">Guardar</button>
+                        <button type="button" id="cancel-add-btn" class="px-3 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition flex items-center shadow-sm">
                             <i data-lucide="x-circle" class="w-4 h-4 mr-1"></i> Cancelar
                         </button>
                     </div>
@@ -149,7 +206,7 @@
             <!-- Selector de Ordenamiento -->
             <div class="mb-4 flex items-center">
                 <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-500"></i>
-                <select id="sort-negotiation" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500" onchange="sortColumn('negotiation', this.value)">
+                <select id="sort-negotiation" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition-colors" onchange="sortColumn('negotiation', this.value)">
                     <option value="default">Ordenar por...</option>
                     <option value="amount_desc">Monto Mayor</option>
                     <option value="amount_asc">Monto Menor</option>
@@ -161,18 +218,18 @@
         </div>
 
         <!-- Columna PENDIENTE -->
-        <div id="pending" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'pending')" ondragleave="handleDragLeave(event)">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center justify-between">
+        <div id="pending" class="kanban-column p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'pending')" ondragleave="handleDragLeave(event)">
+            <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center justify-between">
                 <div class="flex items-center">
                     <i data-lucide="dollar-sign" class="w-5 h-5 mr-2 text-yellow-500"></i>
                     Fase II: Acuerdos en Cierre
                 </div>
-                <span class="ml-2 text-sm bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full" id="pending-count">0</span>
+                <span class="ml-2 text-sm bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold" id="pending-count">0</span>
             </h2>
             <!-- Selector de Ordenamiento -->
             <div class="mb-4 flex items-center">
                 <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-500"></i>
-                <select id="sort-pending" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500" onchange="sortColumn('pending', this.value)">
+                <select id="sort-pending" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition-colors" onchange="sortColumn('pending', this.value)">
                     <option value="default">Ordenar por...</option>
                     <option value="amount_desc">Monto Mayor</option>
                     <option value="amount_asc">Monto Menor</option>
@@ -184,18 +241,18 @@
         </div>
 
         <!-- Columna PAGADO -->
-        <div id="paid" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'paid')" ondragleave="handleDragLeave(event)">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center justify-between">
+        <div id="paid" class="kanban-column p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'paid')" ondragleave="handleDragLeave(event)">
+            <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center justify-between">
                 <div class="flex items-center">
                     <i data-lucide="check-circle" class="w-5 h-5 mr-2 text-green-500"></i>
-                    Fase III: Éxito y Cierre de Capital
+                    Fase III: Capital Recibido
                 </div>
-                <span class="ml-2 text-sm bg-green-100 text-green-700 px-2 py-1 rounded-full" id="paid-count">0</span>
+                <span class="ml-2 text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold" id="paid-count">0</span>
             </h2>
             <!-- Selector de Ordenamiento -->
             <div class="mb-4 flex items-center">
                 <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-500"></i>
-                <select id="sort-paid" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500" onchange="sortColumn('paid', this.value)">
+                <select id="sort-paid" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition-colors" onchange="sortColumn('paid', this.value)">
                     <option value="default">Ordenar por...</option>
                     <option value="amount_desc">Monto Mayor</option>
                     <option value="amount_asc">Monto Menor</option>
@@ -206,19 +263,19 @@
             <div id="paid-list" class="space-y-4 flex-grow"></div>
         </div>
 
-        <!-- Columna PERDIDO (Nueva columna para medir el fracaso) -->
-        <div id="lost" class="kanban-column rounded-xl p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'lost')" ondragleave="handleDragLeave(event)">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2 flex items-center justify-between">
+        <!-- Columna PERDIDO -->
+        <div id="lost" class="kanban-column p-4 flex flex-col h-full" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'lost')" ondragleave="handleDragLeave(event)">
+            <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center justify-between">
                 <div class="flex items-center">
                     <i data-lucide="x-circle" class="w-5 h-5 mr-2 text-red-500"></i>
                     Oportunidades Perdidas
                 </div>
-                <span class="ml-2 text-sm bg-red-100 text-red-700 px-2 py-1 rounded-full" id="lost-count">0</span>
+                <span class="ml-2 text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold" id="lost-count">0</span>
             </h2>
             <!-- Selector de Ordenamiento -->
             <div class="mb-4 flex items-center">
                 <i data-lucide="arrow-up-down" class="w-4 h-4 mr-2 text-gray-500"></i>
-                <select id="sort-lost" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500" onchange="sortColumn('lost', this.value)">
+                <select id="sort-lost" class="p-2 border border-gray-300 rounded-lg text-sm w-full bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition-colors" onchange="sortColumn('lost', this.value)">
                     <option value="default">Ordenar por...</option>
                     <option value="amount_desc">Monto Mayor</option>
                     <option value="amount_asc">Monto Menor</option>
@@ -230,29 +287,29 @@
         </div>
     </main>
 
-    <!-- Modal de ACCIÓN/CONFIRMACIÓN (para arrastrar y eliminar) -->
-    <div id="action-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm">
-            <h3 id="modal-title" class="text-lg font-bold mb-4 text-gray-800">Confirmar Acción</h3>
+    <!-- Modal de ACCIÓN/CONFIRMACIÓN -->
+    <div id="action-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center p-4 z-50 transition-opacity duration-300 ease-out">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-100 transition-transform duration-300 ease-out">
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Confirmar Acción</h3>
             <p id="modal-message" class="mb-6 text-gray-600"></p>
             <!-- Campo opcional para Motivo de Pérdida -->
             <div id="loss-reason-field" class="hidden mb-6">
-                <label for="loss-reason" class="block text-sm font-medium text-gray-700 mb-1">Motivo de la Pérdida</label>
-                <textarea id="loss-reason" rows="2" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Ej: Precio de la competencia, Presupuesto agotado"></textarea>
+                <label for="loss-reason" class="block text-sm font-medium text-gray-700 mb-2">Motivo de la Pérdida</label>
+                <textarea id="loss-reason" rows="2" class="w-full p-2 border border-red-300 rounded-lg bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors" placeholder="Ej: Precio de la competencia, Presupuesto agotado"></textarea>
             </div>
             <div class="flex justify-end space-x-3">
-                <button id="modal-cancel" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">Cancelar</button>
-                <button id="modal-confirm" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Confirmar</button>
+                <button id="modal-cancel" class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors transform hover:scale-[1.02]">Cancelar</button>
+                <button id="modal-confirm" class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors transform hover:scale-[1.02] shadow-md">Confirmar</button>
             </div>
         </div>
     </div>
 
     <!-- Modal de EDICIÓN (para ver/modificar detalles) -->
-    <div id="edit-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg transform transition-all duration-300 scale-100">
+    <div id="edit-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center p-4 z-50 transition-opacity duration-300 ease-out">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg transform scale-100 transition-transform duration-300 ease-out">
             <h3 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center justify-between">
                 Detalles del Patrocinio
-                <button id="edit-modal-close" class="text-gray-400 hover:text-gray-600 transition">
+                <button id="edit-modal-close" class="text-gray-400 hover:text-indigo-600 transition-colors p-1 rounded-full hover:bg-gray-100">
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
             </h3>
@@ -261,31 +318,31 @@
                 
                 <div class="mb-4">
                     <label for="edit-sponsorship-name" class="block text-sm font-medium text-gray-700 mb-1">Nombre de la Marca</label>
-                    <input type="text" id="edit-sponsorship-name" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="edit-sponsorship-name" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
                 </div>
 
                 <div class="mb-4">
                     <label for="edit-sponsorship-amount" class="block text-sm font-medium text-gray-700 mb-1">Monto Proyectado ($)</label>
-                    <input type="number" id="edit-sponsorship-amount" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" min="0">
+                    <input type="number" id="edit-sponsorship-amount" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" min="0">
                 </div>
                 
                 <div class="mb-6">
                     <label for="edit-sponsorship-notes" class="block text-sm font-medium text-gray-700 mb-1">Notas Clave</label>
-                    <textarea id="edit-sponsorship-notes" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    <textarea id="edit-sponsorship-notes" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"></textarea>
                 </div>
                 
                 <!-- Campo de Motivo de Pérdida (solo visible si status es 'lost') -->
-                <div id="edit-loss-reason-container" class="mb-6 hidden">
-                    <label for="edit-loss-reason" class="block text-sm font-medium text-gray-700 mb-1">Motivo por el que se Perdió</label>
-                    <textarea id="edit-loss-reason" rows="2" class="w-full p-3 border border-gray-300 rounded-lg bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"></textarea>
+                <div id="edit-loss-reason-container" class="mb-6 hidden p-3 bg-red-50 border border-red-300 rounded-lg">
+                    <label for="edit-loss-reason" class="block text-sm font-medium text-red-700 mb-1">Motivo por el que se Perdió</label>
+                    <textarea id="edit-loss-reason" rows="2" class="w-full p-3 border border-red-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"></textarea>
                 </div>
 
-                <div class="flex justify-between items-center border-t pt-4">
-                    <button type="button" id="delete-sponsorship-btn" class="flex items-center px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition shadow-md">
+                <div class="flex flex-col sm:flex-row justify-between items-center border-t pt-4 space-y-3 sm:space-y-0">
+                    <button type="button" id="delete-sponsorship-btn" class="flex items-center px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition shadow-md transform hover:scale-[1.02] w-full sm:w-auto justify-center">
                         <i data-lucide="trash-2" class="w-5 h-5 mr-2"></i>
                         Eliminar Patrocinio
                     </button>
-                    <button type="submit" class="flex items-center px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition shadow-lg">
+                    <button type="submit" class="flex items-center px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition shadow-lg transform hover:scale-[1.02] w-full sm:w-auto justify-center">
                         <i data-lucide="save" class="w-5 h-5 mr-2"></i>
                         Guardar Cambios
                     </button>
@@ -318,10 +375,10 @@
         
         lucide.createIcons();
 
-        let allSponsorships = []; // Almacena todos los patrocinios (sin filtrar)
+        let allSponsorships = []; 
         let isOnline = false;
-        let columnSorts = { negotiation: 'default', pending: 'default', paid: 'default', lost: 'default' }; // Estado de ordenamiento
-        let draggedId = null; // ID de la tarjeta que se está arrastrando
+        let columnSorts = { negotiation: 'default', pending: 'default', paid: 'default', lost: 'default' }; 
+        let draggedId = null; 
 
         // --- INICIALIZACIÓN Y CONEXIÓN ---
         async function initFirebase() {
@@ -367,7 +424,6 @@
                 syncText.classList.remove('text-gray-600', 'text-green-600');
                 syncText.classList.add('text-red-600');
                 isOnline = false;
-                // En caso de error, mostrar datos de ejemplo para que la UI no quede vacía
                 showExampleData();
             } else {
                 element.textContent = 'Conectando...';
@@ -387,8 +443,8 @@
                     const sponsorship = {
                         id: doc.id,
                         ...data,
-                        // Convertir el timestamp de Firebase a objeto Date para facilitar el filtrado
-                        createdAt: data.createdAt ? data.createdAt.toDate() : new Date(), 
+                        // Convertir el timestamp de Firestore a objeto Date de JavaScript
+                        createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)) : new Date(), 
                     };
                     allSponsorships.push(sponsorship);
                     if (sponsorship.createdAt instanceof Date) {
@@ -396,9 +452,8 @@
                     }
                 });
                 
-                // Asegurar que el filtro de años se actualice dinámicamente
                 populateYearFilter(Array.from(years));
-                applyFilter(); // Aplicar el filtro después de cargar los datos
+                applyFilter();
                 updateConnectionStatus('connected');
                 
             }, (error) => {
@@ -407,7 +462,6 @@
             });
         }
         
-        // Función para poblar dinámicamente el selector de años
         function populateYearFilter(yearList = []) {
             const yearSelect = document.getElementById('filter-year');
             const currentSelectedYear = yearSelect.value;
@@ -424,7 +478,6 @@
                 yearSelect.appendChild(option);
             });
             
-            // Restaurar la selección anterior si existe
             if (currentSelectedYear && yearSelect.querySelector(`option[value="${currentSelectedYear}"]`)) {
                 yearSelect.value = currentSelectedYear;
             }
@@ -452,23 +505,20 @@
         // --- LÓGICA DE FILTRADO ---
 
         function applyFilter() {
-            // Aquí solo se llama a renderSponsorships, el filtrado se hace dentro de getSortedSponsorships
             renderSponsorships(); 
         }
 
 
         // --- CRUD EN FIREBASE ---
         async function updateSponsorship(id, data) {
-            // **FIX PARA ERROR: Validar el ID antes de usar doc()**
+            // Validar el ID antes de usar doc()
             if (!id || typeof id !== 'string' || id.trim() === '') {
                 console.error("🚫 Error: ID de patrocinio inválido o vacío. No se puede actualizar.");
                 showConfirmationModal('Error de Datos', 'ID de patrocinio no encontrado. No se puede realizar la actualización.', () => {});
                 return;
             }
 
-            // **CORRECCIÓN 1: La verificación de la conexión está aquí para el CRUD**
             if (!isOnline) {
-                // Usamos el modal de confirmación como modal de alerta/error
                 showConfirmationModal('Sin Conexión', 'No hay conexión a Internet. Los cambios no se guardarán.', () => {});
                 return;
             }
@@ -490,15 +540,13 @@
             if (newStatus === 'lost' && lossReason) {
                 updateData.lossReason = lossReason;
             } else if (newStatus !== 'lost') {
-                // Asegurar que si regresa a una columna de capital, se borre el motivo de pérdida
                 updateData.lossReason = firebase.firestore.FieldValue.delete();
             }
-            // Llama a la función que tiene la verificación de conexión
             await updateSponsorship(id, updateData);
         }
         
         async function deleteSponsorship(id) {
-            // **FIX PARA ERROR: Validar el ID antes de usar doc()**
+            // Validar el ID antes de usar doc()
             if (!id || typeof id !== 'string' || id.trim() === '') {
                 console.error("🚫 Error: ID de patrocinio inválido o vacío. No se puede eliminar.");
                 showConfirmationModal('Error de Datos', 'ID de patrocinio no encontrado. No se puede realizar la eliminación.', () => {});
@@ -520,20 +568,47 @@
             }
         }
 
+        // --- FUNCIÓN ACTUALIZADA: Usa la fecha del filtro para nuevos patrocinios ---
         async function addSponsorship(name, amount, notes) {
             if (!isOnline) {
                 showConfirmationModal('Sin Conexión', 'No hay conexión. No se puede agregar nuevo patrocinio.', () => {});
                 return false;
             }
             
+            // 1. Obtener los valores del filtro
+            const selectedYear = document.getElementById('filter-year').value;
+            const selectedMonth = document.getElementById('filter-month').value;
+            
+            let creationDate;
+            
+            if (selectedYear !== 'all' && selectedMonth !== 'all') {
+                // Si hay un mes y año seleccionado, creamos una fecha para el día 15 de ese mes.
+                // Los meses de Date son 0-indexados, por eso (selectedMonth - 1).
+                // Usamos el día 15 para asegurarnos de que la fecha caiga en el mes correcto.
+                creationDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 15);
+                // Firestore guardará esta fecha proporcionada por el cliente (Date object).
+            } else {
+                // Si el filtro es "Todo el Historial" o "Todos los Meses", usamos la fecha actual del servidor.
+                creationDate = firebase.firestore.FieldValue.serverTimestamp();
+            }
+
             try {
                 await db.collection('sponsorships').add({
                     name: name,
                     amount: parseFloat(amount),
                     notes: notes,
                     status: 'negotiation',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    createdAt: creationDate
                 });
+                
+                // Resetear el formulario y UI
+                const addForm = document.getElementById('add-sponsorship-form');
+                const formContainer = document.getElementById('add-form-container');
+                const addBtn = document.getElementById('add-sponsorship-btn');
+                addForm.reset();
+                formContainer.classList.add('hidden');
+                addBtn.classList.remove('hidden');
+                
                 return true;
             } catch (error) {
                 console.error("Error agregando:", error);
@@ -548,7 +623,6 @@
             renderSponsorships();
         }
         
-        // Aplica filtros y ordenamiento
         function getSortedSponsorships(status) {
             const selectedYear = document.getElementById('filter-year').value;
             const selectedMonth = document.getElementById('filter-month').value;
@@ -559,7 +633,8 @@
             if (['negotiation', 'pending', 'paid'].includes(status)) {
                  columnSponsorships = columnSponsorships.filter(sponsorship => {
                     const date = sponsorship.createdAt;
-                    if (!date) return true; // Incluir si no tiene fecha
+                    // Si no tiene fecha de creación o no es un objeto Date, lo incluimos
+                    if (!date || !(date instanceof Date)) return true; 
 
                     const isYearMatch = selectedYear === 'all' || date.getFullYear().toString() === selectedYear;
                     const isMonthMatch = selectedMonth === 'all' || (date.getMonth() + 1).toString() === selectedMonth;
@@ -617,23 +692,23 @@
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
             if (diffDays > 10) {
-                return 'risk-red'; // Más de 10 días: ROJO (Alto Riesgo)
+                return 'risk-red'; 
             } else if (diffDays > 7) {
-                return 'risk-orange'; // Más de 7 días: NARANJA (Alerta)
+                return 'risk-orange'; 
             }
-            return ''; // Retorna cadena vacía si no hay riesgo
+            return ''; 
         }
 
         function createCardElement(sponsorship) {
             const card = document.createElement('div');
-            card.className = 'card bg-white p-4 rounded-lg shadow-md border-t-4 mb-4 fade-in';
+            card.className = 'card p-4 fade-in';
             card.setAttribute('data-id', sponsorship.id);
             card.setAttribute('data-status', sponsorship.status);
 
             const statusConfig = {
-                'pending': { border: 'border-yellow-500', icon: 'dollar-sign', color: 'text-yellow-500', text: 'PENDIENTE' },
-                'paid': { border: 'border-green-500', icon: 'check-circle', color: 'text-green-500', text: 'CAPITAL RECIBIDO' },
-                'negotiation': { border: 'border-blue-500', icon: 'clock', color: 'text-blue-500', text: 'EN NEGOCIACIÓN' },
+                'pending': { border: 'border-yellow-500', icon: 'dollar-sign', color: 'text-yellow-600', text: 'PENDIENTE' },
+                'paid': { border: 'border-green-500', icon: 'check-circle', color: 'text-green-600', text: 'CAPITAL RECIBIDO' },
+                'negotiation': { border: 'border-blue-500', icon: 'clock', color: 'text-blue-600', text: 'EN NEGOCIACIÓN' },
                 'lost': { border: 'border-gray-400', icon: 'slash', color: 'text-gray-500', text: 'PERDIDO' }
             };
 
@@ -641,11 +716,9 @@
             const formattedAmount = `$${(sponsorship.amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
             const creationDate = formatDate(sponsorship.createdAt);
             
-            // Aplicar las clases de riesgo para la fase de Negociación
             let riskClasses = '';
             if (sponsorship.status === 'negotiation') {
                 riskClasses = getRiskClasses(sponsorship);
-                // FIX: Solo añadir la clase si no es una cadena vacía
                 if (riskClasses) {
                     card.classList.add(riskClasses);
                 }
@@ -653,31 +726,35 @@
             
             let extraInfo = '';
             if (sponsorship.status === 'lost' && sponsorship.lossReason) {
-                extraInfo = `<p class="text-xs text-red-600 font-semibold mt-1">Motivo: ${sponsorship.lossReason}</p>`;
+                extraInfo = `<p class="text-xs text-red-600 font-semibold mt-2 line-clamp-2">Motivo: ${sponsorship.lossReason}</p>`;
             }
+
+            // Aplicar el color de borde de la columna, que puede ser sobrescrito por las clases de riesgo
+            card.style.borderColor = config.border.split('-').pop();
 
             card.innerHTML = `
                 <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center space-x-2">
                         <span class="text-xs font-semibold text-gray-500 uppercase tracking-widest">${config.text}</span>
-                        <span class="text-xs font-medium text-gray-400">| Creado: ${creationDate}</span>
                     </div>
                     <button class="edit-card-btn text-gray-400 hover:text-indigo-600 transition p-1 rounded-full hover:bg-gray-100" data-id="${sponsorship.id}" title="Click para editar.">
                         <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
                 </div>
-                <h3 class="text-lg font-bold text-gray-800 mb-1">${sponsorship.name}</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-1 line-clamp-1">${sponsorship.name}</h3>
                 <p class="text-2xl font-extrabold ${config.color} mb-2 flex items-center">
                     <i data-lucide="${config.icon}" class="w-5 h-5 mr-2"></i>
                     ${formattedAmount}
                 </p>
                 ${sponsorship.notes ? `<p class="text-sm text-gray-500 italic mt-2 line-clamp-2">${sponsorship.notes}</p>` : ''}
+                <p class="text-xs text-gray-400 mt-2">Creado: ${creationDate}</p>
                 ${extraInfo}
             `;
             
-            // Añadir la clase de borde base (puede ser sobrescrita por las clases de riesgo)
+            // Re-aplicar el color de borde para asegurar que la clase de riesgo (si existe) lo sobrescriba
+            // La clase de riesgo ya tiene !important en el CSS, así que es seguro.
             card.classList.add(config.border);
-            
+
             const editButton = card.querySelector('.edit-card-btn');
             editButton.addEventListener('click', (e) => {
                 e.stopPropagation(); 
@@ -690,7 +767,7 @@
             return card;
         }
 
-        // Función para calcular el total pagado de todo el historial (sin filtros)
+        // Esta función NO debe usar filtros de fecha.
         function calculateHistoricalTotalPaid() {
             return allSponsorships.reduce((sum, s) => {
                 if (s.status === 'paid') {
@@ -709,20 +786,20 @@
             let totalNegotiation = 0;
             let totalPending = 0;
             let totalPaid = 0;
-            let totalLost = 0; // Sumar para contador visual, pero NO para "Total Proyectado"
+            let totalLost = 0; 
 
             const counts = { negotiation: 0, pending: 0, paid: 0, lost: 0 };
             
             const allStatuses = ['negotiation', 'pending', 'paid', 'lost'];
 
             allStatuses.forEach(statusKey => {
-                const columnData = getSortedSponsorships(statusKey);
+                // getSortedSponsorships aplica el filtro de fecha para negotiation, pending, paid
+                const columnData = getSortedSponsorships(statusKey); 
                 const listElement = document.getElementById(`${statusKey}-list`);
                 
                 columnData.forEach(sponsorship => {
                     const amount = sponsorship.amount || 0;
                     
-                    // Sumar montos para las tarjetas de resumen FILTRADAS
                     if (statusKey === 'negotiation') {
                         totalNegotiation += amount;
                     } else if (statusKey === 'pending') {
@@ -743,8 +820,7 @@
             // --- Actualizar UI para el monto total y las tarjetas de resumen ---
             const formatCurrency = (amount) => `$${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
             
-            // 1. Totales Filtrados
-            // El Total Proyectado SOLO suma Capital (Negociación, Pendiente, Pagado)
+            // Capital Proyectado TOTAL (Filtrado)
             const totalProjected = totalNegotiation + totalPending + totalPaid; 
             
             document.getElementById('capital-negotiation').textContent = formatCurrency(totalNegotiation);
@@ -752,11 +828,10 @@
             document.getElementById('capital-paid').textContent = formatCurrency(totalPaid);
             document.getElementById('total-amount').textContent = formatCurrency(totalProjected);
 
-            // 2. Total Histórico Recibido (NUEVA TARJETA)
+            // Capital Total Histórico Recibido (SIN FILTRO - utiliza la función que ignora la fecha)
             const historicalPaid = calculateHistoricalTotalPaid();
             document.getElementById('historical-total-paid').textContent = formatCurrency(historicalPaid);
             
-            // Actualizar UI para los contadores de las columnas
             Object.keys(counts).forEach(status => {
                 document.getElementById(`${status}-count`).textContent = counts[status];
             });
@@ -791,12 +866,8 @@
                 const notes = document.getElementById('sponsorship-notes').value.trim();
 
                 if (name && amount) {
-                    const success = await addSponsorship(name, amount, notes);
-                    if (success) {
-                        addForm.reset();
-                        formContainer.classList.add('hidden');
-                        addBtn.classList.remove('hidden');
-                    }
+                    // Llama a la función actualizada
+                    await addSponsorship(name, amount, notes);
                 } else {
                     showConfirmationModal('Datos Incompletos', 'Por favor, completa al menos el nombre y el monto.', () => {});
                 }
@@ -818,7 +889,6 @@
                 const amount = document.getElementById('edit-sponsorship-amount').value;
                 const notes = document.getElementById('edit-sponsorship-notes').value.trim();
                 
-                // Obtener el motivo de pérdida solo si es relevante (la tarjeta está en 'lost')
                 const sponsorship = allSponsorships.find(s => s.id === id);
                 let updateData = {
                     name: name,
@@ -844,7 +914,6 @@
                 const id = document.getElementById('edit-sponsorship-id').value;
                 const name = document.getElementById('edit-sponsorship-name').value;
                 
-                // Muestra modal de confirmación
                 showConfirmationModal(
                     'Confirmar Eliminación',
                     `¿Estás seguro de que quieres eliminar permanentemente el patrocinio de <strong>${name}</strong>? Esta acción no se puede deshacer.`,
@@ -857,7 +926,6 @@
             const sponsorship = allSponsorships.find(s => s.id === id);
             if (!sponsorship) return;
 
-            // Rellenar formulario
             document.getElementById('edit-sponsorship-id').value = id;
             document.getElementById('edit-sponsorship-name').value = sponsorship.name;
             document.getElementById('edit-sponsorship-amount').value = sponsorship.amount || 0;
@@ -874,7 +942,6 @@
                 editLossReason.value = '';
             }
             
-            // Mostrar modal
             document.getElementById('edit-modal').classList.remove('hidden');
             document.getElementById('edit-modal').classList.add('flex');
             document.getElementById('edit-sponsorship-name').focus();
@@ -910,36 +977,33 @@
             const cardElement = document.querySelector(`[data-id="${draggedId}"]`);
             if (cardElement) cardElement.classList.remove('opacity-50');
 
-            // Capturamos el ID antes de limpiarlo globalmente para asegurar que el callback lo tenga.
             const idToUpdate = draggedId;
             if (!idToUpdate) return;
 
             const currentStatus = cardElement.getAttribute('data-status');
-            if (currentStatus === newStatus) return;
+            if (currentStatus === newStatus) {
+                draggedId = null; 
+                return;
+            }
 
             const sponsorship = allSponsorships.find(s => s.id === idToUpdate);
             if (!sponsorship) return;
 
-            // Lógica especial para la columna 'lost'
             if (newStatus === 'lost') {
-                // **CORRECCIÓN 2: El callback recibe el motivo de pérdida**
                 showConfirmationModal(
                     'Confirmar Oportunidad Perdida',
                     `Estás a punto de mover <strong>${sponsorship.name}</strong> a la columna PERDIDO. Por favor, especifica el motivo para el análisis futuro:`,
-                    // Este callback recibe el 'lossReason' automáticamente del modal
                     (lossReason) => updateSponsorshipStatus(idToUpdate, newStatus, lossReason), 
-                    true // Indica que debe mostrar el campo de motivo de pérdida
+                    true 
                 );
             } else {
                  showConfirmationModal(
                     'Confirmar Cambio',
                     `¿Mover <strong>${sponsorship.name}</strong> a <strong>${getStatusName(newStatus)}</strong>?`,
-                    // El callback para otros estados no necesita el lossReason, solo llama a la función de estado
                     () => updateSponsorshipStatus(idToUpdate, newStatus) 
                 );
             }
             
-            // Limpiamos el ID global después de programar la acción.
             draggedId = null; 
         }
 
@@ -962,7 +1026,7 @@
             const lossReasonInput = document.getElementById('loss-reason');
             const confirmBtn = document.getElementById('modal-confirm');
             
-            lossReasonInput.value = ''; // Limpiar campo
+            lossReasonInput.value = ''; 
 
             if (showLossReason) {
                 lossReasonField.classList.remove('hidden');
@@ -982,7 +1046,6 @@
             confirmBtn.onclick = () => {
                 modal.classList.add('hidden');
                 if (onConfirm) {
-                    // **CORRECCIÓN 2: Pasar el valor del motivo de pérdida al callback si aplica**
                     if (showLossReason) {
                         onConfirm(lossReasonInput.value.trim());
                     } else {
