@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -336,6 +336,8 @@
                     <label for="edit-loss-reason" class="block text-sm font-medium text-red-700 mb-1">Motivo por el que se Perdió</label>
                     <textarea id="edit-loss-reason" rows="2" class="w-full p-3 border border-red-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"></textarea>
                 </div>
+                
+                <div class="text-sm text-gray-500 mb-4 border-t pt-2" id="last-activity-display">Última actividad: N/A</div>
 
                 <div class="flex flex-col sm:flex-row justify-between items-center border-t pt-4 space-y-3 sm:space-y-0">
                     <button type="button" id="delete-sponsorship-btn" class="flex items-center px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition shadow-md transform hover:scale-[1.02] w-full sm:w-auto justify-center">
@@ -379,6 +381,13 @@
         let isOnline = false;
         let columnSorts = { negotiation: 'default', pending: 'default', paid: 'default', lost: 'default' }; 
         let draggedId = null; 
+
+        // --- UTILIDADES DE FECHA ---
+        function safeToDate(timestamp) {
+            if (!timestamp) return null;
+            // Manejar objetos Timestamp de Firestore o Strings/números si ya fueron convertidos o son de datos de ejemplo.
+            return timestamp.toDate ? timestamp.toDate() : new Date(timestamp); 
+        }
 
         // --- INICIALIZACIÓN Y CONEXIÓN ---
         async function initFirebase() {
@@ -443,8 +452,9 @@
                     const sponsorship = {
                         id: doc.id,
                         ...data,
-                        // Convertir el timestamp de Firestore a objeto Date de JavaScript
-                        createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)) : new Date(), 
+                        // Convertir timestamps de Firestore a objeto Date de JavaScript
+                        createdAt: safeToDate(data.createdAt), 
+                        lastActivityDate: safeToDate(data.lastActivityDate) || safeToDate(data.createdAt), // Usar createdAt si lastActivityDate no existe
                     };
                     allSponsorships.push(sponsorship);
                     if (sponsorship.createdAt instanceof Date) {
@@ -485,20 +495,26 @@
 
         function showExampleData() {
             const now = new Date();
-            const eightDaysAgo = new Date();
-            eightDaysAgo.setDate(now.getDate() - 8);
+            const eightDaysAgo = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
+            const elevenDaysAgo = new Date(now.getTime() - 11 * 24 * 60 * 60 * 1000);
+            const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
             
             const exampleData = [
-                { id: '1', name: 'Moss (Riesgo Naranja)', amount: 2000, status: 'negotiation', notes: 'No ha respondido en 8 días.', createdAt: eightDaysAgo },
-                { id: '2', name: 'Puma (Negociación Activa)', amount: 900, status: 'negotiation', notes: 'Revisión final de contrato.', createdAt: now },
-                { id: '3', name: 'Gp (Pagado)', amount: 1000, status: 'paid', notes: 'Pagado en cash. Cerrado.', createdAt: now },
-                { id: '4', name: 'Arcoweld (Perdido)', amount: 700, status: 'lost', notes: 'El cliente se fue con la competencia.', lossReason: 'Precio de la competencia' , createdAt: eightDaysAgo },
-                { id: '5', name: 'Mi casino (Riesgo Rojo)', amount: 450, status: 'negotiation', notes: 'Sin respuesta en 11 días.', createdAt: new Date(now.getTime() - 11 * 24 * 60 * 60 * 1000) },
-                { id: '6', name: 'Solverapp (Pendiente)', amount: 550, status: 'pending', notes: 'Pendiente de transferencia.', createdAt: eightDaysAgo },
-                { id: '7', name: 'Zeta Corp', amount: 1200, status: 'pending', notes: 'Firma de acuerdo pendiente', createdAt: now }
+                { id: '1', name: 'Moss (Riesgo Naranja)', amount: 2000, status: 'negotiation', notes: 'Sin respuesta en 8 días.', createdAt: twoDaysAgo, lastActivityDate: eightDaysAgo },
+                { id: '2', name: 'Puma (Negociación Activa)', amount: 900, status: 'negotiation', notes: 'Revisión final de contrato.', createdAt: twoDaysAgo, lastActivityDate: now },
+                { id: '3', name: 'Gp (Pagado)', amount: 1000, status: 'paid', notes: 'Pagado en cash. Cerrado.', createdAt: twoDaysAgo, lastActivityDate: twoDaysAgo },
+                { id: '4', name: 'Arcoweld (Perdido)', amount: 700, status: 'lost', notes: 'El cliente se fue con la competencia.', lossReason: 'Precio de la competencia' , createdAt: twoDaysAgo, lastActivityDate: twoDaysAgo },
+                { id: '5', name: 'Mi casino (Riesgo Rojo)', amount: 450, status: 'negotiation', notes: 'Sin respuesta en 11 días.', createdAt: twoDaysAgo, lastActivityDate: elevenDaysAgo },
+                { id: '6', name: 'Solverapp (Pendiente)', amount: 550, status: 'pending', notes: 'Pendiente de transferencia.', createdAt: twoDaysAgo, lastActivityDate: eightDaysAgo },
+                { id: '7', name: 'Zeta Corp', amount: 1200, status: 'pending', notes: 'Firma de acuerdo pendiente', createdAt: twoDaysAgo, lastActivityDate: now }
             ];
             
             allSponsorships = exampleData;
+            // Asegurar que las fechas se conviertan a Date para el renderizado
+            allSponsorships.forEach(s => {
+                s.createdAt = new Date(s.createdAt);
+                s.lastActivityDate = new Date(s.lastActivityDate);
+            });
             applyFilter();
         }
 
@@ -510,7 +526,7 @@
 
 
         // --- CRUD EN FIREBASE ---
-        async function updateSponsorship(id, data) {
+        async function updateSponsorship(id, data, updateActivityDate = true) {
             // Validar el ID antes de usar doc()
             if (!id || typeof id !== 'string' || id.trim() === '') {
                 console.error("🚫 Error: ID de patrocinio inválido o vacío. No se puede actualizar.");
@@ -523,11 +539,18 @@
                 return;
             }
             
+            const updatePayload = {
+                ...data,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            // Actualizar lastActivityDate si no se está marcando como perdido y si se solicita
+            if (updateActivityDate && data.status !== 'lost') {
+                updatePayload.lastActivityDate = firebase.firestore.FieldValue.serverTimestamp();
+            }
+
             try {
-                await db.collection('sponsorships').doc(id).update({
-                    ...data,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                await db.collection('sponsorships').doc(id).update(updatePayload);
                 console.log(`✅ Actualizado: ${id}`);
             } catch (error) {
                 console.error("Error actualizando:", error);
@@ -537,12 +560,17 @@
 
         async function updateSponsorshipStatus(id, newStatus, lossReason = null) {
             const updateData = { status: newStatus };
-            if (newStatus === 'lost' && lossReason) {
+            let updateActivity = true; 
+
+            if (newStatus === 'lost') {
                 updateData.lossReason = lossReason;
-            } else if (newStatus !== 'lost') {
+                // No actualizamos lastActivityDate para 'lost' a menos que se editen notas o monto
+                updateActivity = false; 
+            } else {
                 updateData.lossReason = firebase.firestore.FieldValue.delete();
             }
-            await updateSponsorship(id, updateData);
+            
+            await updateSponsorship(id, updateData, updateActivity);
         }
         
         async function deleteSponsorship(id) {
@@ -568,7 +596,7 @@
             }
         }
 
-        // --- FUNCIÓN ACTUALIZADA: Usa la fecha del filtro para nuevos patrocinios ---
+        // --- FUNCIÓN DE AGREGAR: Inicializa lastActivityDate ---
         async function addSponsorship(name, amount, notes) {
             if (!isOnline) {
                 showConfirmationModal('Sin Conexión', 'No hay conexión. No se puede agregar nuevo patrocinio.', () => {});
@@ -582,13 +610,8 @@
             let creationDate;
             
             if (selectedYear !== 'all' && selectedMonth !== 'all') {
-                // Si hay un mes y año seleccionado, creamos una fecha para el día 15 de ese mes.
-                // Los meses de Date son 0-indexados, por eso (selectedMonth - 1).
-                // Usamos el día 15 para asegurarnos de que la fecha caiga en el mes correcto.
                 creationDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 15);
-                // Firestore guardará esta fecha proporcionada por el cliente (Date object).
             } else {
-                // Si el filtro es "Todo el Historial" o "Todos los Meses", usamos la fecha actual del servidor.
                 creationDate = firebase.firestore.FieldValue.serverTimestamp();
             }
 
@@ -598,7 +621,8 @@
                     amount: parseFloat(amount),
                     notes: notes,
                     status: 'negotiation',
-                    createdAt: creationDate
+                    createdAt: creationDate,
+                    lastActivityDate: creationDate // Inicializar la actividad con la fecha de creación
                 });
                 
                 // Resetear el formulario y UI
@@ -660,8 +684,8 @@
                     break;
                 case 'default':
                 default:
-                    // Ordenar por fecha más reciente por defecto
-                    columnSponsorships.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+                    // Ordenar por última actividad más reciente por defecto
+                    columnSponsorships.sort((a, b) => (b.lastActivityDate?.getTime() || 0) - (a.lastActivityDate?.getTime() || 0));
                     break;
             }
             return columnSponsorships;
@@ -675,25 +699,28 @@
             return `${day}/${month}/${year}`;
         }
         
-        // --- FUNCIÓN CENTRAL DE ALERTAS VISUALES ---
+        // --- FUNCIÓN ACTUALIZADA: CALCULA RIESGO EN BASE A lastActivityDate ---
         function getRiskClasses(sponsorship) {
-            if (sponsorship.status !== 'negotiation') {
+            if (sponsorship.status === 'lost' || sponsorship.status === 'paid') {
                 return '';
             }
 
             const now = new Date();
-            const created = sponsorship.createdAt;
+            const lastActivity = sponsorship.lastActivityDate;
             
-            if (!created || !(created instanceof Date)) return '';
+            if (!lastActivity || !(lastActivity instanceof Date)) return '';
             
             // Diferencia en milisegundos
-            const diffTime = Math.abs(now.getTime() - created.getTime());
+            const diffTime = Math.abs(now.getTime() - lastActivity.getTime());
             // Diferencia en días
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
+            // ALERTA ROJA: Más de 10 días sin actividad
             if (diffDays > 10) {
                 return 'risk-red'; 
-            } else if (diffDays > 7) {
+            } 
+            // ALERTA NARANJA: Más de 7 días sin actividad
+            else if (diffDays > 7) {
                 return 'risk-orange'; 
             }
             return ''; 
@@ -714,14 +741,12 @@
 
             const config = statusConfig[sponsorship.status] || statusConfig['negotiation']; 
             const formattedAmount = `$${(sponsorship.amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-            const creationDate = formatDate(sponsorship.createdAt);
+            // Usamos la fecha de la última actividad para la tarjeta
+            const lastActivityDate = formatDate(sponsorship.lastActivityDate);
             
-            let riskClasses = '';
-            if (sponsorship.status === 'negotiation') {
-                riskClasses = getRiskClasses(sponsorship);
-                if (riskClasses) {
-                    card.classList.add(riskClasses);
-                }
+            let riskClasses = getRiskClasses(sponsorship);
+            if (riskClasses) {
+                card.classList.add(riskClasses);
             }
             
             let extraInfo = '';
@@ -747,12 +772,11 @@
                     ${formattedAmount}
                 </p>
                 ${sponsorship.notes ? `<p class="text-sm text-gray-500 italic mt-2 line-clamp-2">${sponsorship.notes}</p>` : ''}
-                <p class="text-xs text-gray-400 mt-2">Creado: ${creationDate}</p>
+                <p class="text-xs text-gray-500 mt-2 font-semibold">Última Actividad: <span class="text-gray-700">${lastActivityDate}</span></p>
                 ${extraInfo}
             `;
             
             // Re-aplicar el color de borde para asegurar que la clase de riesgo (si existe) lo sobrescriba
-            // La clase de riesgo ya tiene !important en el CSS, así que es seguro.
             card.classList.add(config.border);
 
             const editButton = card.querySelector('.edit-card-btn');
@@ -902,7 +926,8 @@
 
 
                 if (name && amount) {
-                    await updateSponsorship(id, updateData);
+                    // Si se edita la tarjeta, marcamos que se debe actualizar la fecha de actividad.
+                    await updateSponsorship(id, updateData, true); 
                     hideEditModal();
                 } else {
                     showConfirmationModal('Datos Incompletos', 'Por favor, completa al menos el nombre y el monto.', () => {});
@@ -930,6 +955,10 @@
             document.getElementById('edit-sponsorship-name').value = sponsorship.name;
             document.getElementById('edit-sponsorship-amount').value = sponsorship.amount || 0;
             document.getElementById('edit-sponsorship-notes').value = sponsorship.notes || '';
+            
+            // Mostrar la fecha de última actividad
+            const lastActivityDisplay = document.getElementById('last-activity-display');
+            lastActivityDisplay.textContent = `Última Actividad: ${formatDate(sponsorship.lastActivityDate)}`;
             
             const lossReasonContainer = document.getElementById('edit-loss-reason-container');
             const editLossReason = document.getElementById('edit-loss-reason');
